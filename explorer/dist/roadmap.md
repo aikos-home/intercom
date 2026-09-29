@@ -1,6 +1,6 @@
 # Roadmap
 
-State: 2026-09-26. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
+State: 2026-09-29. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
 the interactive version is the roadmap section of the [explorer](../explorer/).
 
 `[x]` done · `[~]` under way · `[ ]` to do · `◆` a decision that must be locked in
@@ -29,7 +29,7 @@ Decide what the device is before buying and printing: the front design, the part
 
 ## M1 · All hardware on the table
 
-**Now** · 1 of 5 tasks done
+**Now** · 2 of 5 tasks done
 
 Nothing can be measured, fitted or programmed for real until every part of the final build is here.
 
@@ -38,7 +38,7 @@ Needs: M0 Concept and architecture
 - [ ] ◆ Lock in: splitter 12 V or 5 V (it decides the heater and its switch)
 - [ ] Place the order: cable, cable gland, heater, seals, small parts
 - [x] In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses
-- [~] In the mail: the screen computer
+- [x] Everything ordered so far has arrived (the screen computer last, 29 Sep)
 - [ ] Bench checks on arrival: touch chip (I²C scan), LED strip really RGBW, heater switch triggers at 3.3 V
 
 *Done when:* Every part of the final build is here and identified.
@@ -69,7 +69,7 @@ Needs: M1 All hardware on the table
 
 - [ ] Phone side first: answer a test call from a notification (no door hardware needed)
 - [ ] Doorbell on the doorbell computer: all three line states, 20 of 20 presses on the phone in under 1 s
-- [ ] (waiting) Screen pages change on a ring; WiFi signal measured in a mock box behind metal (waits for the screen)
+- [ ] Screen pages change on a ring; WiFi signal measured in a mock box behind metal
 - [ ] Talk, one direction at a time (walkie-talkie)
 - [ ] ◆ Lock in: full duplex or walkie-talkie, after tuning the echo
 - [ ] ◆ Lock in: which extra audio features (voice messages, push-to-talk into the house)

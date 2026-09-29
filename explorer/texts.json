@@ -1859,7 +1859,7 @@
      "t_split": "Lock in: splitter 12 V or 5 V (it decides the heater and its switch)",
      "t_order": "Place the order: cable, cable gland, heater, seals, small parts",
      "t_inhand": "In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses",
-     "t_mail": "In the mail: the screen computer",
+     "t_mail": "Everything ordered so far has arrived (the screen computer last, 29 Sep)",
      "t_bench": "Bench checks on arrival: touch chip (I²C scan), LED strip really RGBW, heater switch triggers at 3.3 V"
     }
    },
@@ -1871,7 +1871,7 @@
      "t_split": "Festlegen: Splitter 12 V oder 5 V (davon hängen Heizung und Schalter ab)",
      "t_order": "Bestellen: Kabel, Kabeleinführung, Heizung, Dichtungen, Kleinteile",
      "t_inhand": "Da: Klingel- und Sprechrechner, Mikrofone, Verstärker, Lautsprecher, 12→5-V-Wandler, Pegelwandler, Klimasensor, Heizungsschalter, USB-Seriell-Adapter, Thermosicherungen",
-     "t_mail": "Unterwegs: der Bildschirmrechner",
+     "t_mail": "Alles bisher Bestellte ist da (zuletzt der Bildschirmrechner, 29.09.)",
      "t_bench": "Prüfen beim Auspacken: Touch-Chip (I²C-Scan), LED-Streifen wirklich RGBW, Heizungsschalter schaltet mit 3,3 V"
     }
    }
@@ -1910,7 +1910,7 @@
     "tasks": {
      "t_s0": "Phone side first: answer a test call from a notification (no door hardware needed)",
      "t_s1": "Doorbell on the doorbell computer: all three line states, 20 of 20 presses on the phone in under 1 s",
-     "t_s2": "Screen pages change on a ring; WiFi signal measured in a mock box behind metal (waits for the screen)",
+     "t_s2": "Screen pages change on a ring; WiFi signal measured in a mock box behind metal",
      "t_s3": "Talk, one direction at a time (walkie-talkie)",
      "t_s4": "Lock in: full duplex or walkie-talkie, after tuning the echo",
      "t_audio": "Lock in: which extra audio features (voice messages, push-to-talk into the house)",
@@ -1925,7 +1925,7 @@
     "tasks": {
      "t_s0": "Zuerst das Handy: einen Testanruf aus einer Benachrichtigung annehmen (ohne Hardware an der Tür)",
      "t_s1": "Klingel auf dem Klingelrechner: alle drei Leitungszustände, 20 von 20 Drücken in unter 1 s auf dem Handy",
-     "t_s2": "Bildschirmseiten wechseln beim Klingeln; WLAN-Signal in einem Probekasten hinter Metall gemessen (wartet auf den Bildschirm)",
+     "t_s2": "Bildschirmseiten wechseln beim Klingeln; WLAN-Signal in einem Probekasten hinter Metall gemessen",
      "t_s3": "Sprechen, immer eine Richtung (Wechselsprechen)",
      "t_s4": "Festlegen: Gegensprechen oder Wechselsprechen, nach dem Echo-Abgleich",
      "t_audio": "Festlegen: welche Audio-Extras (Sprachnachrichten, Push-to-Talk ins Haus)",

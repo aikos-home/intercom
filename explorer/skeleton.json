@@ -1,5 +1,5 @@
 {
-  "state": "2026-09-26",
+  "state": "2026-09-29",
   "_about": "Structure of the Klingelbox explorer, state 2026-09-24. Architecture (decided 2026-09-24): ONE PoE cable into the box, no switch in the box. Three computers: the WT32-ETH01 is the wired doorbell computer (button, light, heater, climate sensor) on the splitter's data port; the Waveshare ESP32-S3-ETH is the talk computer (microphone, amplifier) on WiFi; the LilyGO T5 4.7 S3 Touch drives the screen on WiFi. Splitter output voltage (12 V shown) is still pending. Hints carry the facts writers may use; writers add no new facts.",
   "zones": [
     {
@@ -246,7 +246,7 @@
     {
       "id": "lilygo",
       "zone": "box",
-      "status": "in_mail",
+      "status": "in_hand",
       "name": "Screen computer",
       "hint": "LilyGO T5-4.7-S3 Touch (H716): 4.7 inch e-paper, 960 x 540, 16 grey levels, capacitive touch, its own ESP32-S3. Needs its own computer because this parallel e-paper panel needs a dedicated driver chip. Connected by WiFi (locked). Powered from the box's 5 V. Touch chip (GT911 or L58) to be confirmed with an I2C scan."
     },
@@ -1588,7 +1588,7 @@
         },
         {
           "id": "t_mail",
-          "status": "doing",
+          "status": "done",
           "node": "lilygo"
         },
         {
@@ -1652,7 +1652,7 @@
         },
         {
           "id": "t_s2",
-          "status": "waiting",
+          "status": "open",
           "node": "lilygo"
         },
         {
