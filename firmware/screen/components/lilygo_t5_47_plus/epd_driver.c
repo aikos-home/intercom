@@ -21,6 +21,10 @@
 #include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <esp_types.h>
+#include <esp_timer.h>
+
+// Klingelbox: frame durations of the last full-screen draw (see epd_full_frame_us)
+static int64_t full_frame_us[15] = {0};
 #include <xtensa/core-macros.h>
 
 #include <string.h>
@@ -678,6 +682,9 @@ void IRAM_ATTR epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode) {
     return;
   }
   vTaskDelay(10);
+  const bool measure = area.x == 0 && area.y == 0 && area.width == EPD_WIDTH && area.height == EPD_HEIGHT &&
+                       mode == BLACK_ON_WHITE;
+  int64_t t_frame = esp_timer_get_time();
   for (uint8_t k = 0; k < frame_count; k++) {
     OutputParams p1 = {
         .area = area,
@@ -712,12 +719,18 @@ void IRAM_ATTR epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode) {
     vTaskDelete(t1);
     vTaskDelete(t2);
     vTaskDelay(5);
+    const int64_t now = esp_timer_get_time();
+    if (measure)
+      full_frame_us[k] = now - t_frame;
+    t_frame = now;
   }
   vSemaphoreDelete(fetch_sem);
   vSemaphoreDelete(feed_sem);
 }
 
 /* Klingelbox: per-pixel transition plan, one sweep (see epd_driver.h) */
+
+int64_t epd_full_frame_us(int32_t k) { return (k >= 0 && k < 15) ? full_frame_us[k] : 0; }
 
 static uint8_t *cmd_lut = NULL;  // 4 command nibbles (0 none, 1 darken, 2 lighten) -> 4 x 2 bits
 
@@ -736,16 +749,19 @@ static void build_cmd_lut(void) {
   }
 }
 
-static inline uint8_t plan_cmd(uint16_t pl, int32_t k) {
-  const uint8_t dir = (pl >> 8) & 0x03;
-  if (dir == 0)
-    return 0;
-  const int32_t from = (pl >> 4) & 0x0F, to = pl & 0x0F;
-  return (k >= from && k < to) ? dir : 0;
+static inline uint8_t plan_cmd(uint16_t pl, int32_t phase, int32_t k) {
+  if (phase == 0) {
+    const uint8_t dir = (pl >> 12) & 0x03;
+    if (dir == 0)
+      return 0;
+    const int32_t from = (pl >> 4) & 0x0F, to = pl & 0x0F;
+    return (k >= from && k < to) ? dir : 0;
+  }
+  return ((pl & 0x4000) && k < ((pl >> 8) & 0x0F)) ? 0x01 : 0;
 }
 
 void epd_draw_plan(const uint16_t *plan, const uint8_t *row_active, const int16_t *row_x0,
-                   const int16_t *row_x1, int32_t frame_delay_ms) {
+                   const int16_t *row_x1, int32_t frame_delay_ms, int32_t drive_percent, int32_t two_phase) {
   if (cmd_lut == NULL)
     build_cmd_lut();
   if (cmd_lut == NULL) {
@@ -755,8 +771,12 @@ void epd_draw_plan(const uint16_t *plan, const uint8_t *row_active, const int16_
   uint32_t line32[EPD_WIDTH / 8];
   uint8_t *line = (uint8_t *) line32;
 
-  for (int32_t k = 0; k <= 15; k++) {  // 15 drive frames, then one neutral frame
-    const int32_t t = contrast_cycles_4[k < 15 ? k : 0];
+  const int32_t n_frames = two_phase ? 30 : 15;
+  for (int32_t f = 0; f <= n_frames; f++) {  // drive frames, then one neutral frame
+    const int32_t phase = f / 15, k = f % 15;
+    const bool neutral = f == n_frames;
+    const int32_t t = contrast_cycles_4[neutral ? 0 : k];
+    const int64_t t_start = esp_timer_get_time();
     epd_start_frame();
     for (int32_t i = 0; i < EPD_HEIGHT; i++) {
       if (!row_active[i]) {
@@ -764,10 +784,10 @@ void epd_draw_plan(const uint16_t *plan, const uint8_t *row_active, const int16_
         continue;
       }
       memset(line, 0, EPD_WIDTH / 2);
-      if (k < 15) {
+      if (!neutral) {
         const uint16_t *p = plan + i * EPD_WIDTH;
         for (int32_t x = row_x0[i]; x < row_x1[i]; x += 2) {
-          line[x / 2] = plan_cmd(p[x], k) | (plan_cmd(p[x + 1], k) << 4);
+          line[x / 2] = plan_cmd(p[x], phase, k) | (plan_cmd(p[x + 1], phase, k) << 4);
         }
       }
       calc_epd_input_4bpp(line32, epd_get_current_buffer(), k, cmd_lut);
@@ -778,8 +798,18 @@ void epd_draw_plan(const uint16_t *plan, const uint8_t *row_active, const int16_
       write_row(t);
     }
     epd_end_frame();
-    if (frame_delay_ms > 0)
+    if (neutral)
+      break;  // neutral frame: nothing to hold
+    // hold, so this frame lasts as long as drive_percent % of the same frame in a full draw: the
+    // pixels keep their voltage in between, and a small update gets the same ink time as a big one
+    const int64_t target = full_frame_us[k] * drive_percent / 100;
+    if (target > 0) {
+      const int64_t rest = target - (esp_timer_get_time() - t_start);
+      if (rest >= 1000)
+        vTaskDelay(rest / 1000);
+    } else if (frame_delay_ms > 0) {
       vTaskDelay(frame_delay_ms);
+    }
   }
 }
 

@@ -138,14 +138,25 @@ void epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode);
  * Only pixels row_x0[y]..row_x1[y] (x0 even, x1 odd) of an active row are read from plan.
  *
  * plan holds one uint16_t per pixel (EPD_WIDTH x EPD_HEIGHT, row-major):
- *   bits 8-9: 0 = leave alone, 1 = darken, 2 = lighten
- *   bits 4-7: first frame, bits 0-3: end frame (exclusive), frames 0..14.
+ *   phase A (frames 0..14):  bits 12-13 = 0 leave alone, 1 darken, 2 lighten;
+ *                            bits 4-7 = first frame, bits 0-3 = end frame (exclusive)
+ *   phase B (frames 0..14 again, only if two_phase): bit 14 = darken, bits 8-11 = end frame
+ * Phase B lets a pixel that got lighter go through white first: lighten fully in A, then darken
+ * from white to its grey in B, the way a full refresh reaches that grey.
  * Frame k uses the same timing as epd_draw_image, so a pixel that goes from darkness a to b gets
  * exactly the frames that separate the two levels. A final neutral frame leaves every driven pixel
- * at 0 V. frame_delay_ms is held after each frame (as epd_draw_image does).
+ * at 0 V. Every frame is held until it has lasted drive_percent % of the same frame in a full-screen
+ * draw (measured by epd_draw_image), so a small update gets the same ink time as a large one; before
+ * the first full draw, frame_delay_ms is held instead.
  */
 void epd_draw_plan(const uint16_t *plan, const uint8_t *row_active, const int16_t *row_x0,
-                   const int16_t *row_x1, int32_t frame_delay_ms);
+                   const int16_t *row_x1, int32_t frame_delay_ms, int32_t drive_percent, int32_t two_phase);
+
+/**
+ * Klingelbox: duration of frame k (0..14) of the last full-screen grayscale draw, in microseconds,
+ * including the pause after it; 0 until the first full refresh has run.
+ */
+int64_t epd_full_frame_us(int32_t k);
 
 void epd_draw_frame_1bit(Rect_t area, uint8_t *ptr, DrawMode_t mode, int32_t time);
 

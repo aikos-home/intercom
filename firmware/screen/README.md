@@ -6,6 +6,8 @@ panel (ED047TC1, 960 × 540, 16 grey levels) and a GT911 touch chip. Bench-teste
 | File | What |
 |---|---|
 | `screen-test.yaml` | bench test page: orientation arrow, five touch targets, border lines |
+| `screen-demo.yaml` | what the screen can do, 8 pages: drawing, photos, vector graphic and icons, QR codes, text sizes, grey levels, animation; bottom bar = page changes |
+| `demo/demo.h`, `make_demo_assets.py`, `demo-assets/` | helpers and test pictures for the demo (`local-assets/` is generated from local sample photos and not published) |
 | `components/lilygo_t5_47_plus/` | the display, touch and battery driver (**GPLv3**, see below), with the fast refresh |
 
 ## Build and flash
@@ -34,12 +36,15 @@ everything else like an e-reader. These are the rules, in this order:
 
 1. **Compare, don't clear.** The driver keeps a copy of what the panel shows. A new picture is compared
    with it pixel by pixel; unchanged pixels get no voltage at all.
-2. **Move each pixel by exactly the difference.** Grey level `v` (0 black … 15 white) is darkness
-   `d = 15 − v`. The panel drives a picture in 15 frames, and a pixel of darkness `d` normally gets frames
-   `0 … d−1`. So a pixel going from `d_old` to `d_new` is darkened in frames `[d_old, d_new)` or lightened
-   in frames `[d_new, d_old)`: the very frames that separate the two levels. No detour through white or
-   black, so no flash.
-3. **One sweep.** All changed rows are driven in the same sweep of 15 frames, whatever their number, plus
+2. **Darker: continue the grey scale. Lighter: undraw.** Grey level `v` (0 black … 15 white) is darkness
+   `d = 15 − v`. The panel builds a grey from white in 15 frames: a pixel of darkness `d` is darkened in
+   frames `0 … d−1`. A pixel that gets darker continues: frames `[d_old, d_new)`. A pixel that gets lighter
+   is **undrawn**: lightened in frames `0 … d_old−1`, exactly the frames it was darkened with, then darkened
+   to its new grey `0 … d_new−1` (a second phase, used when many greys sit next to lightened pixels).
+   **Balance above everything:** a pixel must never get more white ink than it had black ink, or the other
+   way round. A version that lightened every pixel fully (15 frames) ran a grey spinner for 110 frames and
+   left a ring that even a full flash did not remove. E-paper has to be driven DC-balanced.
+3. **One sweep.** All changed rows are driven in the same sweep (15 frames, or 30 with phase B), plus
    one neutral frame so no pixel is left holding a voltage. Only the changed stretch of each row is computed.
 4. **Re-darken the fringe.** Lightening spills over onto neighbouring pixels and fades thin dark lines that
    did not change. Every unchanged dark pixel within 2 px of a lightened one is darkened again.
@@ -48,9 +53,26 @@ everything else like an e-reader. These are the rules, in this order:
 6. **Clean up now and then.** Small updates leave faint traces. A full refresh with the flash runs at boot,
    every `full_update_every` partial refreshes (default 30, 0 = never), when more than half the screen
    changes, and on request (`id(epaper).request_full_update()`, e.g. at night).
-7. **Power off after every picture**, as the original driver does.
+7. **Power off after every picture**, as the original driver does. **No endless animations:** a few
+   seconds at most; a running animation repeats every small imbalance hundreds of times.
+8. **Same ink time for every update, exactly.** E-ink pigment needs time under voltage, and a sweep over
+   a few rows is over much sooner than one over many. So every frame of a partial refresh is held until it
+   lasts as long as the same frame in a full refresh (`partial_drive_percent`, keep 100; the full refresh at
+   boot measures the frames, about 49 ms each). Shorter frames (60 %, tried for speed) make small updates
+   grey at first and, worse, unbalanced: a page change undraws with full-refresh timing, so a drawing made
+   with short frames got 1.7 times more white ink than black ink and left a light trace on the next page.
+9. **True page change = explicit flag, and it flashes.** The UI marks a switch to another screen with
+   `request_page_change()`; that picture gets a full refresh with **one short black-white flash**
+   (`PAGE_CHANGE_SHORT_FLASH`, about 1 s, the default). Tested on the bench (2026-09-29): the short flash
+   is as clean as the long one (four cycles, about 2 s), and only a flash leaves no trace. Every gentle route left the previous screen behind
+   as a light trace: lightening only, undrawing the old picture with the darkening timing, undrawing with
+   epdiy's gentler white timing, and the same for erasing within a page. Without measured manufacturer
+   waveforms (none are public for the ED047TC1; epdiy's are generic tables from the same timings) the ink
+   keeps a memory of what it showed, and only balanced full black-white cycles reset it. Changes within
+   a screen stay partial and flash-free; erasing large content counts as a page change; after a pause
+   without a touch, one flash cleans up while nobody looks.
 
-Measured on the bench: a tap changes the picture in 0.4–0.6 s (the original driver: 2.0–2.3 s), with no
+Measured on the bench: a tap changes the picture in about 0.5 s (the original driver: 2.0–2.3 s), with no
 flash and no visible shadow.
 
 The panel stands on its side: its rows run across the portrait page. A line of text across the page

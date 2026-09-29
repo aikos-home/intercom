@@ -62,7 +62,8 @@ im Audiocode kann sie deshalb nie stumm schalten. Details, Strombudget und Winte
 | [`docs/family-app.md`](docs/family-app.md) | die geplante selbst gehostete App für den Haushalt |
 | [`hardware/`](hardware/) | Front, Kasten und Diffusor: Skripte, STL und STEP, Maßzeichnungen der Teile |
 | [`explorer/`](explorer/) | die interaktive Karte und ihr Build |
-| [`firmware/screen/`](firmware/screen/) | ESPHome-Firmware für den Bildschirm, mit schneller Aktualisierung ohne Aufblitzen (Englisch) |
+| [`firmware/screen/`](firmware/screen/) | ESPHome-Firmware für den Bildschirm, mit schneller Aktualisierung ohne Aufblitzen und einer Demo (Englisch) |
+| [`docs/screen-ux.md`](docs/screen-ux.md) | was der Bildschirm an der Tür zeigen kann und was nicht, am Panel getestet (Englisch) |
 | [`tools/`](tools/) | der Datenschutz-Scan vor jedem Push und Testskripte für den Labortisch |
 
 Die Firmware für Klingel- und Sprechrechner und die Home-Assistant-Automationen kommen dazu,

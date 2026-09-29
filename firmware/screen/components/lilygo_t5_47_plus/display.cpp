@@ -120,11 +120,14 @@ void LilygoT5_47PlusDisplay::dump_config() {
 
 void LilygoT5_47PlusDisplay::display() {
   if (this->task_ == nullptr) {
-    this->display_full_(this->buffer_);
+    this->display_full_(this->buffer_, PAGE_CHANGE_FLASH);
     return;
   }
   xSemaphoreTake(this->lock_, portMAX_DELAY);
   memcpy(this->target_buffer_, this->buffer_, this->get_buffer_length_());
+  // a page change stays with its picture, even if a newer picture replaces it before it is drawn
+  this->target_page_change_ = this->target_page_change_ || this->page_change_next_;
+  this->page_change_next_ = false;
   this->pending_ = true;
   xSemaphoreGive(this->lock_);
   xTaskNotifyGive(this->task_);
@@ -144,25 +147,46 @@ void LilygoT5_47PlusDisplay::refresh_loop_() {
         break;
       }
       memcpy(this->work_buffer_, this->target_buffer_, this->get_buffer_length_());
+      const bool page_change = this->target_page_change_;
+      this->target_page_change_ = false;
+      this->busy_ = true;
       this->pending_ = false;
       xSemaphoreGive(this->lock_);
 
-      const bool full = this->force_full_ || !this->partial_updating_ ||
-                        (this->full_update_every_ > 0 && this->partial_count_ >= this->full_update_every_);
-      if (full || !this->display_partial_(this->work_buffer_))
-        this->display_full_(this->work_buffer_);
+      if (page_change) {
+        this->display_full_(this->work_buffer_, this->page_change_style_);
+      } else {
+        const bool full = this->force_full_ || !this->partial_updating_ ||
+                          (this->full_update_every_ > 0 && this->partial_count_ >= this->full_update_every_);
+        if (full || !this->display_partial_(this->work_buffer_))
+          this->display_full_(this->work_buffer_, PAGE_CHANGE_FLASH);
+      }
+      this->busy_ = false;
     }
   }
 }
 
-void LilygoT5_47PlusDisplay::display_full_(const uint8_t *fb) {
+void LilygoT5_47PlusDisplay::display_full_(const uint8_t *fb, uint8_t style) {
+  static const char *const STYLES[3] = {"flash", "short flash", "deep clean"};
   uint32_t t0 = esphome::millis();
-  ESP_LOGD(TAG, "Refreshing EPD (full)...");
+  ESP_LOGD(TAG, "Refreshing EPD (full, %s)...", STYLES[style < 3 ? style : 0]);
 
   epd_poweron();
   uint32_t t1 = esphome::millis();
 
-  epd_clear();
+  // clear to white, then draw the picture from white (the grey scale is calibrated from white)
+  switch (style) {
+    case PAGE_CHANGE_SHORT_FLASH:
+      epd_clear_area_cycles(epd_full_screen(), 1, 50);  // one black-white cycle
+      break;
+    case PAGE_CHANGE_DEEP_CLEAN:
+      for (int i = 0; i < 5; i++)
+        epd_clear();  // 5 x 4 balanced black-white cycles
+      break;
+    default:
+      epd_clear();  // four black-white cycles, the cleanest
+      break;
+  }
   uint32_t t2 = esphome::millis();
 
   epd_draw_grayscale_image(epd_full_screen(), (uint8_t *) fb);
@@ -178,6 +202,13 @@ void LilygoT5_47PlusDisplay::display_full_(const uint8_t *fb) {
 
   ESP_LOGD(TAG, "EPD refresh done: poweron=%ums clear=%ums draw=%ums poweroff=%ums total=%ums", t1 - t0, t2 - t1,
            t3 - t2, t4 - t3, t4 - t0);
+  ESP_LOGD(TAG, "Full-draw frames (ms): %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+           (int) (epd_full_frame_us(0) / 1000), (int) (epd_full_frame_us(1) / 1000), (int) (epd_full_frame_us(2) / 1000),
+           (int) (epd_full_frame_us(3) / 1000), (int) (epd_full_frame_us(4) / 1000), (int) (epd_full_frame_us(5) / 1000),
+           (int) (epd_full_frame_us(6) / 1000), (int) (epd_full_frame_us(7) / 1000), (int) (epd_full_frame_us(8) / 1000),
+           (int) (epd_full_frame_us(9) / 1000), (int) (epd_full_frame_us(10) / 1000),
+           (int) (epd_full_frame_us(11) / 1000), (int) (epd_full_frame_us(12) / 1000),
+           (int) (epd_full_frame_us(13) / 1000), (int) (epd_full_frame_us(14) / 1000));
 }
 
 // Klingelbox: flash-free partial refresh. Works out, per pixel, how far it has to be darkened or
@@ -187,7 +218,8 @@ void LilygoT5_47PlusDisplay::display_full_(const uint8_t *fb) {
 bool LilygoT5_47PlusDisplay::display_partial_(const uint8_t *fb) {
   static const int W = 960, H = 540, STRIDE = W / 2;  // 4 bits per pixel
   static const int FRINGE = 2;                        // px around a lightened pixel
-  static const uint16_t DARKEN = 1 << 8, LIGHTEN = 2 << 8;
+  // plan bits: phase A dir 12-13, from 4-7, to 0-3; phase B darken flag 14, to 8-11 (see epd_driver.h)
+  static const uint16_t DARKEN = 1 << 12, LIGHTEN = 2 << 12, DIR_MASK = 3 << 12, B_DARKEN = 1 << 14;
   uint32_t t0 = esphome::millis();
 
   auto nib = [](const uint8_t *row, int x) -> int {
@@ -236,9 +268,16 @@ bool LilygoT5_47PlusDisplay::display_partial_(const uint8_t *fb) {
     active_rows++;
   }
 
-  // 3. plan per pixel: darkness d = 15 - grey value; going from d_old to d_new uses frames
-  //    [d_old, d_new) darkening or [d_new, d_old) lightening, the frames that separate the levels
-  int changed_px = 0;
+  // 3. provisional plan, darkness d = 15 - grey value:
+  //    darker:           frames [d_old, d_new) darkening, continuing the panel's grey scale
+  //    lighter to white: frames [0, d_old) lightening = "undraw", exactly the frames it was darkened with
+  //    lighter to grey:  provisionally lightened by the difference, see step 5
+  //    BALANCE: a pixel never gets more white ink than it had black ink. Lightening "fully" (15 frames)
+  //    for every pixel built up an electrical imbalance in a grey animation that even a flash did not
+  //    remove (2026-09-29): e-paper must be driven DC-balanced.
+  static const uint16_t NEAR = 1u << 15;         // marks pixels within FRINGE px of a lightened pixel
+  static const int GREY_SENSITIVE_MAX = 1500;    // above this, use the second phase (see step 4)
+  int changed_px = 0, grey_lighten = 0;
   for (int y = 0; y < H; y++) {
     if (!this->row_active_[y])
       continue;
@@ -251,30 +290,37 @@ bool LilygoT5_47PlusDisplay::display_partial_(const uint8_t *fb) {
         pl[x] = DARKEN | (d_old << 4) | d_new;
         changed_px++;
       } else if (d_new < d_old) {
-        pl[x] = LIGHTEN | (d_new << 4) | d_old;
+        if (d_new == 0) {
+          pl[x] = LIGHTEN | (0 << 4) | d_old;
+        } else {
+          pl[x] = LIGHTEN | (d_new << 4) | d_old;
+          grey_lighten++;
+        }
         changed_px++;
       } else {
         pl[x] = 0;
       }
     }
   }
-  if (changed_px > W * H / 2)
-    return false;  // more than half the screen changed: a full refresh looks cleaner
+  if (changed_px * 100 > W * H * this->max_partial_percent_)
+    return false;  // so much changed that a full refresh looks cleaner
 
-  // 4. lightening spills over onto neighbouring pixels and fades thin dark lines that did not
-  //    change: re-darken every unchanged dark pixel within FRINGE px of a lightened pixel
-  int fringe_px = 0;
+  // 4. lightening spills over onto the pixels around it. Mark every pixel within FRINGE px of a
+  //    lightened one (unchanged white pixels don't care). Greys among them are sensitive: black
+  //    saturates, but a grey that loses some darkening shows as a light outline. With many sensitive
+  //    pixels (e.g. a photo appearing where a drawing was), use a second phase: go through white.
+  int sensitive = grey_lighten;
   for (int y = 0; y < H; y++) {
     if (!this->row_active_[y])
       continue;
     const uint8_t *cur = fb + y * STRIDE;
     uint16_t *pl = this->plan_ + y * W;
     for (int x = this->row_x0_[y]; x <= this->row_x1_[y]; x++) {
-      if (pl[x] != 0)
+      if ((pl[x] & DIR_MASK) == LIGHTEN)
         continue;
-      const int d = 15 - nib(cur, x);
-      if (d == 0)
-        continue;  // white
+      const int d_new = 15 - nib(cur, x);
+      if (pl[x] == 0 && d_new == 0)
+        continue;
       bool near_lighten = false;
       for (int yy = std::max(0, y - FRINGE); yy <= std::min(H - 1, y + FRINGE) && !near_lighten; yy++) {
         if (!this->row_active_[yy])
@@ -283,30 +329,70 @@ bool LilygoT5_47PlusDisplay::display_partial_(const uint8_t *fb) {
         const int xa = std::max((int) this->row_x0_[yy], x - FRINGE);
         const int xb = std::min((int) this->row_x1_[yy], x + FRINGE);
         for (int xx = xa; xx <= xb; xx++) {
-          if ((pn[xx] & 0x0300) == LIGHTEN) {
+          if ((pn[xx] & DIR_MASK) == LIGHTEN) {
             near_lighten = true;
             break;
           }
         }
       }
       if (near_lighten) {
-        pl[x] = DARKEN | (0 << 4) | d;
+        pl[x] |= NEAR;
+        if (d_new > 0 && d_new < 15)
+          sensitive++;
+      }
+    }
+  }
+  const bool two_phase = sensitive > GREY_SENSITIVE_MAX;
+
+  // 5. final plan
+  //    one phase:  as provisional; unchanged black next to lightening is re-darkened alongside
+  //    two phases: every pixel that gets lighter, and every grey next to lightening, goes through
+  //                white: fully lightened in phase A, darkened [0, d_new) in phase B like a full
+  //                refresh; pixels darkening from white next to lightening wait for phase B
+  int fringe_px = 0;
+  for (int y = 0; y < H; y++) {
+    if (!this->row_active_[y])
+      continue;
+    const uint8_t *cur = fb + y * STRIDE;
+    uint16_t *pl = this->plan_ + y * W;
+    for (int x = this->row_x0_[y]; x <= this->row_x1_[y]; x++) {
+      const uint16_t pv = pl[x];
+      const bool near = pv & NEAR;
+      const int d_new = 15 - nib(cur, x);
+      // through white, balanced: undraw the old darkness [0, d_old), then draw the new one [0, d_new)
+      auto through_white = [&](int d_old) -> uint16_t {
+        return (d_old > 0 ? (LIGHTEN | (0 << 4) | d_old) : 0) | (d_new > 0 ? (B_DARKEN | (d_new << 8)) : 0);
+      };
+      if ((pv & DIR_MASK) == LIGHTEN) {
+        pl[x] = two_phase ? through_white(pv & 0x0F) : pv;
+      } else if ((pv & DIR_MASK) == DARKEN) {
+        const int d_old = (pv >> 4) & 0x0F;
+        if (two_phase && near)
+          pl[x] = through_white(d_old);
+        else
+          pl[x] = pv & ~NEAR;
+      } else if (near) {
         fringe_px++;
+        if (d_new == 15)
+          pl[x] = two_phase ? (B_DARKEN | (15 << 8)) : (DARKEN | (0 << 4) | 15);
+        else
+          pl[x] = two_phase ? through_white(d_new) : 0;
       }
     }
   }
   uint32_t t1 = esphome::millis();
 
   epd_poweron();
-  epd_draw_plan(this->plan_, this->row_active_, this->row_x0_, this->row_x1_, 5);
+  epd_draw_plan(this->plan_, this->row_active_, this->row_x0_, this->row_x1_, 5, this->partial_drive_percent_,
+                two_phase ? 1 : 0);
   epd_poweroff();
 
   memcpy(this->prev_buffer_, fb, this->get_buffer_length_());
   this->partial_count_++;
-  ESP_LOGD(TAG, "EPD partial refresh: %d rows swept, %d px changed, %d px re-darkened, plan %ums, draw %ums "
-                "(partial %u of %u)",
-           active_rows, changed_px, fringe_px, t1 - t0, esphome::millis() - t1, this->partial_count_,
-           this->full_update_every_);
+  ESP_LOGD(TAG, "EPD partial refresh: %d rows swept, %d px changed, %d fringe, %d grey-sensitive, %s, plan %ums, "
+                "draw %ums (drive %u%%, partial %u of %u)",
+           active_rows, changed_px, fringe_px, sensitive, two_phase ? "2 phases" : "1 phase", t1 - t0,
+           esphome::millis() - t1, this->partial_drive_percent_, this->partial_count_, this->full_update_every_);
   return true;
 }
 

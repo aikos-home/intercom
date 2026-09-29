@@ -99,6 +99,9 @@ void LilygoT5_47PlusTouchscreen::update_touches() {
   uint8_t num_of_touches = touch_state & 0x07;
 
   if ((touch_state & 0x80) == 0 || num_of_touches > MAX_TOUCHES) {
+    // Klingelbox: no new data yet. Keep the current touches instead of reporting a release (as
+    // ESPHome's own gt911 component does); otherwise a moving finger gets "lifted" every few polls.
+    this->skip_update_ = true;
     return;
   }
 

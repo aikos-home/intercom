@@ -61,7 +61,8 @@ can never silence it. Details, power budget and the winter heater: [docs/archite
 | [`docs/family-app.md`](docs/family-app.md) | the planned self-hosted app for the household |
 | [`hardware/`](hardware/) | front sheet, box and diffuser: generator scripts, STL and STEP, part drawings |
 | [`explorer/`](explorer/) | the interactive map and its build |
-| [`firmware/screen/`](firmware/screen/) | ESPHome firmware for the screen, with a flash-free fast refresh |
+| [`firmware/screen/`](firmware/screen/) | ESPHome firmware for the screen, with a flash-free fast refresh and a demo of what it can do |
+| [`docs/screen-ux.md`](docs/screen-ux.md) | what the door screen can and cannot show, tested on the panel |
 | [`tools/`](tools/) | the privacy scan that runs before every push, and bench test scripts |
 
 The firmware for the doorbell and talk computers and the Home Assistant automations will be added

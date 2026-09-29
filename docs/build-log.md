@@ -73,6 +73,14 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** lightening a pixel also fades its neighbours. Thin lines next to changed pixels vanished
   until the driver re-darkened them.
 
+- A demo with eight test pages settled what the screen can show: text from 32 px at a normal
+  distance, about 8 distinguishable greys, QR codes at any size ([findings](screen-ux.md)).
+- **Lesson:** a flash-free change to another page always left the previous page behind as a faint
+  trace, however carefully the old picture was undone. One short black-white flash (about a second)
+  clears it. So the screen flashes briefly on a real page change and stays calm within a page.
+- **Lesson:** e-paper must be driven balanced. A test animation that lightened pixels more than it had
+  darkened them left a faint ring after about a hundred frames that even a flash did not remove at once.
+
 ## Next
 
 The plan from here is the [roadmap](roadmap.md): all hardware on the table, measure and
