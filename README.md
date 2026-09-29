@@ -61,7 +61,7 @@ can never silence it. Details, power budget and the winter heater: [docs/archite
 | [`docs/family-app.md`](docs/family-app.md) | the planned self-hosted app for the household |
 | [`hardware/`](hardware/) | front sheet, box and diffuser: generator scripts, STL and STEP, part drawings |
 | [`explorer/`](explorer/) | the interactive map and its build |
-| [`tools/`](tools/) | the privacy scan that runs before every push |
+| [`tools/`](tools/) | the privacy scan that runs before every push, and bench test scripts |
 
 Firmware (ESPHome YAML) and the Home Assistant automations will be added once they have
 passed the bench tests.

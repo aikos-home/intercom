@@ -248,7 +248,7 @@
       "zone": "box",
       "status": "in_hand",
       "name": "Screen computer",
-      "hint": "LilyGO T5-4.7-S3 Touch (H716): 4.7 inch e-paper, 960 x 540, 16 grey levels, capacitive touch, its own ESP32-S3. Needs its own computer because this parallel e-paper panel needs a dedicated driver chip. Connected by WiFi (locked). Powered from the box's 5 V. Touch chip (GT911 or L58) to be confirmed with an I2C scan."
+      "hint": "LilyGO T5-4.7-S3 Touch (H716): 4.7 inch e-paper, 960 x 540, 16 grey levels, capacitive touch, its own ESP32-S3. Needs its own computer because this parallel e-paper panel needs a dedicated driver chip. Connected by WiFi (locked). Powered from the box's 5 V. Touch chip GT911 (confirmed 2026-09-29 by an I2C scan: address 0x5D)."
     },
     {
       "id": "amp",
@@ -1533,7 +1533,7 @@
     "PoE power budget: ring plus call plus heater comes close to the 802.3af limit (about 12 of 12.95 W). The doorbell computer switches the heater off during calls; the real draw is not measured yet.",
     "Pin assignment on the doorbell and talk computers: proposed, to be confirmed on the bench (the button needs an analog ADC1 input).",
     "WiFi signal for the screen and the talk computer inside the box: on-site test.",
-    "LED strip type (RGBW) and the screen's touch chip: bench checks.",
+    "LED strip type (RGBW): bench check.",
     "CAD: the grille cavity floor slopes the wrong way (water would pool at the speaker)."
   ],
   "milestones": [

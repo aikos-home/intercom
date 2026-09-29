@@ -62,7 +62,7 @@ im Audiocode kann sie deshalb nie stumm schalten. Details, Strombudget und Winte
 | [`docs/family-app.md`](docs/family-app.md) | die geplante selbst gehostete App für den Haushalt |
 | [`hardware/`](hardware/) | Front, Kasten und Diffusor: Skripte, STL und STEP, Maßzeichnungen der Teile |
 | [`explorer/`](explorer/) | die interaktive Karte und ihr Build |
-| [`tools/`](tools/) | der Datenschutz-Scan vor jedem Push |
+| [`tools/`](tools/) | der Datenschutz-Scan vor jedem Push und Testskripte für den Labortisch |
 
 Die Firmware (ESPHome-YAML) und die Home-Assistant-Automationen kommen dazu, sobald sie die
 Tests auf dem Labortisch bestanden haben.

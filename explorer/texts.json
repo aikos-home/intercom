@@ -292,14 +292,14 @@
    "en": {
     "label": "Screen computer",
     "what": "Shows greetings and notices at the door and reads touches. Home Assistant sends the content over WiFi. It is a 4.7 inch e-paper screen (keeps its image without power) with its own ESP32-S3 computer on the back.",
-    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 pixels, 16 grey levels. Touch chip GT911 or L58: check with a scan of the I2C chip bus.",
+    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 pixels, 16 grey levels. Touch chip GT911 at I2C address 0x5D, checked on 29 Sep; ESPHome has a ready driver for it.",
     "why": "The parallel e-paper panel (fed over many data lines at once) needs a dedicated driver chip, so it gets its own computer. WiFi is a fixed decision.",
     "solder": "No soldering with a USB-C power lead. VBUS (USB 5 V line) needs the 40-pin header (pin row) soldered; check pin 2 or 4 on your board. Then keep USB-C off a PC while the box is on."
    },
    "de": {
     "label": "Bildschirmrechner",
     "what": "Zeigt an der Tür Begrüßung und Hinweise und nimmt Touch-Eingaben entgegen. Home Assistant schickt die Inhalte per WLAN. Es ist ein 4,7-Zoll-E-Paper (hält das Bild ohne Strom) mit eigenem ESP32-S3 auf der Rückseite.",
-    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 Pixel, 16 Graustufen. Touch-Chip GT911 oder L58: per Scan des I2C-Chipbusses prüfen.",
+    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 Pixel, 16 Graustufen. Touch-Chip GT911 an I2C-Adresse 0x5D, geprüft am 29.09.; ESPHome hat dafür einen fertigen Treiber.",
     "why": "Das parallele E-Paper-Panel (viele Datenleitungen gleichzeitig) braucht einen eigenen Treiberchip und damit einen eigenen Rechner. WLAN ist fest entschieden.",
     "solder": "Kein Löten mit USB-C-Stromkabel. VBUS (USB-5-V-Leitung) braucht die 40-polige Stiftleiste; Pin 2 oder 4 an der Platine prüfen. Nie USB-C an einen PC, solange der Kasten Strom hat."
    }
@@ -1817,8 +1817,8 @@
    "de": "WLAN-Empfang von Bildschirm und Sprechrechner im Kasten hinter dem Messing: Test vor Ort steht noch aus."
   },
   {
-   "en": "LED strip type (probably RGBW, with a separate white LED) and the screen touch chip (GT911 or L58): still to be checked on the bench.",
-   "de": "Typ des LED-Streifens (vermutlich RGBW, mit eigener weißer LED) und Touch-Chip des Bildschirms (GT911 oder L58): Prüfung auf dem Labortisch steht noch aus."
+   "en": "LED strip type (probably RGBW, with a separate white LED): still to be checked on the bench.",
+   "de": "Typ des LED-Streifens (vermutlich RGBW, mit eigener weißer LED): Prüfung auf dem Labortisch steht noch aus."
   },
   {
    "en": "CAD: the floor of the cavity behind the grille slopes the wrong way, so water would pool at the speaker; the fix is pending.",
@@ -1860,7 +1860,7 @@
      "t_order": "Place the order: cable, cable gland, heater, seals, small parts",
      "t_inhand": "In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses",
      "t_mail": "Everything ordered so far has arrived (the screen computer last, 29 Sep)",
-     "t_bench": "Bench checks on arrival: touch chip (I²C scan), LED strip really RGBW, heater switch triggers at 3.3 V"
+     "t_bench": "Bench checks on arrival: touch chip ✓ (GT911, 29 Sep), LED strip really RGBW, heater switch triggers at 3.3 V"
     }
    },
    "de": {
@@ -1872,7 +1872,7 @@
      "t_order": "Bestellen: Kabel, Kabeleinführung, Heizung, Dichtungen, Kleinteile",
      "t_inhand": "Da: Klingel- und Sprechrechner, Mikrofone, Verstärker, Lautsprecher, 12→5-V-Wandler, Pegelwandler, Klimasensor, Heizungsschalter, USB-Seriell-Adapter, Thermosicherungen",
      "t_mail": "Alles bisher Bestellte ist da (zuletzt der Bildschirmrechner, 29.09.)",
-     "t_bench": "Prüfen beim Auspacken: Touch-Chip (I²C-Scan), LED-Streifen wirklich RGBW, Heizungsschalter schaltet mit 3,3 V"
+     "t_bench": "Prüfen beim Auspacken: Touch-Chip ✓ (GT911, 29.09.), LED-Streifen wirklich RGBW, Heizungsschalter schaltet mit 3,3 V"
     }
    }
   },

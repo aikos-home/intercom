@@ -53,7 +53,7 @@ Parts marked **measure** have dimensions the maker does not publish. The drawing
 | 1 | WT32-ETH01 (ESP32 + LAN8720 + RJ45) | doorbell computer, wired | about €20; no USB: flash it once over serial |
 | 1 | USB-to-serial adapter, 3.3 V logic (e.g. CP2102 or CH340G) | first flash of the WT32-ETH01 | |
 | 1 | Waveshare ESP32-S3-POE-ETH | talk computer, on WiFi | about €25–32; its plug-on PoE module is only for desk tests |
-| 1 | LilyGO T5-4.7-S3 **Touch** (SKU H716) | screen computer + 4.7" e-paper, 960 × 540 | about €55 at OpenELAB; several marketplace listings with a touch photo are **not** touch versions; **measure** the mounting holes |
+| 1 | LilyGO T5-4.7-S3 **Touch** (SKU H716) | screen computer + 4.7" e-paper, 960 × 540 | about €55 at OpenELAB; several marketplace listings with a touch photo are **not** touch versions; **measure** the mounting holes. Touch chip on ours: GT911 at I²C 0x5D, which ESPHome supports (check yours with `tools/touch_scan.py`) |
 
 ## Audio
 

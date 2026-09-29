@@ -115,5 +115,4 @@ a phone as audio plus a local Whisper transcript.
 ## Open points
 
 See the "Still open" list in the explorer. In short: splitter voltage, real power draw, pin
-assignment on the bench, WiFi signal inside the box, the LED strip type and the screen's touch
-chip, and a CAD fix (the grille cavity floor slopes the wrong way).
+assignment on the bench, WiFi signal inside the box, the LED strip type, and a CAD fix (the grille cavity floor slopes the wrong way).

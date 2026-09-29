@@ -39,7 +39,7 @@ Needs: M0 Concept and architecture
 - [ ] Place the order: cable, cable gland, heater, seals, small parts
 - [x] In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses
 - [x] Everything ordered so far has arrived (the screen computer last, 29 Sep)
-- [ ] Bench checks on arrival: touch chip (I²C scan), LED strip really RGBW, heater switch triggers at 3.3 V
+- [ ] Bench checks on arrival: touch chip ✓ (GT911, 29 Sep), LED strip really RGBW, heater switch triggers at 3.3 V
 
 *Done when:* Every part of the final build is here and identified.
 

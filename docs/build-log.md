@@ -45,6 +45,21 @@ What happened, in order, including the dead ends. Dates are 2026.
 - The [explorer](../explorer/) was built to make the whole system understandable, including
   every wire and every solder joint.
 
+## 25 September: a roadmap
+
+- Eight milestones from the bench to the door, with a separate track that proves the box can be
+  sealed before the real brass plate is bought. See the [roadmap](roadmap.md).
+
+## 29 September: the screen computer
+
+- The LilyGO T5-4.7-S3 Touch arrived. The sources disagreed about its touch chip: LilyGO's wiki
+  says GT911, their own driver code expects an L58. Only the GT911 has an ESPHome driver.
+- A scan of the board's I²C bus answered it: **GT911 at address 0x5D** (it answers "911" when
+  asked for its product id), plus the PCF8563 clock chip at 0x51. The script is
+  [`tools/touch_scan.py`](../tools/touch_scan.py); it runs on MicroPython.
+- **Lesson:** read out the whole flash before flashing anything. The factory program went into a
+  16 MB backup first, so it can be put back byte for byte.
+
 ## Next
 
 The plan from here is the [roadmap](roadmap.md): all hardware on the table, measure and
