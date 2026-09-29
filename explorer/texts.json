@@ -292,14 +292,14 @@
    "en": {
     "label": "Screen computer",
     "what": "Shows greetings and notices at the door and reads touches. Home Assistant sends the content over WiFi. It is a 4.7 inch e-paper screen (keeps its image without power) with its own ESP32-S3 computer on the back.",
-    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 pixels, 16 grey levels. Touch chip GT911 at I2C address 0x5D, checked on 29 Sep; ESPHome has a ready driver for it.",
+    "specs": "LilyGO T5-4.7-S3 Touch (H716), board V2.4. Touch glass 120.1 × 66.77 mm, visible picture 56.95 × 101.9 mm. The screen comes loose on two ribbons and folds onto the board: 11.9 mm thick together. Seven mounting holes Ø3.94. Touch chip GT911 at I2C address 0x5D.",
     "why": "The parallel e-paper panel (fed over many data lines at once) needs a dedicated driver chip, so it gets its own computer. WiFi is a fixed decision.",
     "solder": "No soldering with a USB-C power lead. VBUS (USB 5 V line) needs the 40-pin header (pin row) soldered; check pin 2 or 4 on your board. Then keep USB-C off a PC while the box is on."
    },
    "de": {
     "label": "Bildschirmrechner",
     "what": "Zeigt an der Tür Begrüßung und Hinweise und nimmt Touch-Eingaben entgegen. Home Assistant schickt die Inhalte per WLAN. Es ist ein 4,7-Zoll-E-Paper (hält das Bild ohne Strom) mit eigenem ESP32-S3 auf der Rückseite.",
-    "specs": "LilyGO T5-4.7-S3 Touch (H716). 960 × 540 Pixel, 16 Graustufen. Touch-Chip GT911 an I2C-Adresse 0x5D, geprüft am 29.09.; ESPHome hat dafür einen fertigen Treiber.",
+    "specs": "LilyGO T5-4.7-S3 Touch (H716), Platine V2.4. Touchglas 120,1 × 66,77 mm, sichtbares Bild 56,95 × 101,9 mm. Der Bildschirm kommt lose an zwei Flachbandkabeln und wird auf die Platine geklappt: zusammen 11,9 mm dick. Sieben Befestigungslöcher Ø3,94. Touch-Chip GT911 an I2C-Adresse 0x5D.",
     "why": "Das parallele E-Paper-Panel (viele Datenleitungen gleichzeitig) braucht einen eigenen Treiberchip und damit einen eigenen Rechner. WLAN ist fest entschieden.",
     "solder": "Kein Löten mit USB-C-Stromkabel. VBUS (USB-5-V-Leitung) braucht die 40-polige Stiftleiste; Pin 2 oder 4 an der Platine prüfen. Nie USB-C an einen PC, solange der Kasten Strom hat."
    }
@@ -1821,6 +1821,10 @@
    "de": "Typ des LED-Streifens (vermutlich RGBW, mit eigener weißer LED): Prüfung auf dem Labortisch steht noch aus."
   },
   {
+   "en": "CAD: the measured screen glass needs a smaller brass window (visible area 56.95 × 101.9 mm) and about 1.5 mm more room below the speaker block.",
+   "de": "CAD: Das gemessene Bildschirmglas braucht ein kleineres Messingfenster (sichtbare Fläche 56,95 × 101,9 mm) und etwa 1,5 mm mehr Platz unter dem Lautsprechermodul."
+  },
+  {
    "en": "CAD: the floor of the cavity behind the grille slopes the wrong way, so water would pool at the speaker; the fix is pending.",
    "de": "CAD: Der Boden des Hohlraums hinter dem Gitter fällt zur falschen Seite, Wasser würde sich am Lautsprecher sammeln; die Korrektur steht noch aus."
   }
@@ -1882,7 +1886,7 @@
     "why": "Find out whether everything fits before designing the real box: first the parts alone, then with every cable.",
     "done_when": "Every part and every cable fits in a printed box, and the number of cables entering it is final.",
     "tasks": {
-     "t_measure": "Measure everything the makers don't publish: display mounting holes, board heights, microphone, splitter",
+     "t_measure": "Measure everything the makers don't publish: display ✓ (holes, glass, stack, 29 Sep), doorbell computer, microphone, splitter",
      "t_cables": "Count every cable and connector that enters the box",
      "t_alpha1": "Alpha print 1: all parts in place, no cables",
      "t_alpha2": "Alpha print 2: the same with all the internal wiring",
@@ -1894,7 +1898,7 @@
     "why": "Herausfinden, ob alles passt, bevor der richtige Kasten entsteht: erst die Teile allein, dann mit allen Kabeln.",
     "done_when": "Jedes Teil und jedes Kabel passt in einen gedruckten Kasten, und die Zahl der Kabel, die hineinführen, steht fest.",
     "tasks": {
-     "t_measure": "Alles messen, was die Hersteller nicht angeben: Befestigungslöcher des Displays, Bauhöhen, Mikrofon, Splitter",
+     "t_measure": "Alles messen, was die Hersteller nicht veröffentlichen: Bildschirm ✓ (Löcher, Glas, Aufbau, 29.09.), Klingelrechner, Mikrofon, Splitter",
      "t_cables": "Jedes Kabel und jeden Stecker zählen, der in den Kasten führt",
      "t_alpha1": "Alpha-Druck 1: alle Teile an ihrem Platz, ohne Kabel",
      "t_alpha2": "Alpha-Druck 2: dasselbe mit der ganzen Verkabelung",

@@ -51,7 +51,7 @@ Find out whether everything fits before designing the real box: first the parts 
 
 Needs: M1 All hardware on the table
 
-- [ ] Measure everything the makers don't publish: display mounting holes, board heights, microphone, splitter
+- [ ] Measure everything the makers don't publish: display ✓ (holes, glass, stack, 29 Sep), doorbell computer, microphone, splitter
 - [ ] Count every cable and connector that enters the box
 - [ ] Alpha print 1: all parts in place, no cables
 - [ ] Alpha print 2: the same with all the internal wiring

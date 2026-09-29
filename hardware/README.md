@@ -11,7 +11,7 @@ hand-edited meshes.
 | [`front-sheet/`](front-sheet/) | `make_layout_v5.py` draws the front at true scale (1 unit = 1 mm): a dimensioned SVG, a reference PNG and a detail of the fold. The SVG also carries the engraving, which the CAD reads. |
 | [`cad/`](cad/) | FreeCAD scripts. `kasten_v3_params.py` is the single source of dimensions for box and front; `make_kasten_v3.py` builds the box and carrier plate, `make_diffusor_v1.py` the diffuser, `make_sheet_v5.py` the front sheet. |
 | [`models/`](models/) | Exported STL (for printing) and STEP (for CAD and metal shops). |
-| [`parts/`](parts/) | Dimensioned drawings of bought parts, from datasheets and community measurements. |
+| [`parts/`](parts/) | Dimensioned drawings of bought parts, from datasheets and community measurements, and our own caliper measurements where makers publish nothing ([LilyGO display](parts/lilygo-t5-s3-touch-measured.md)). |
 
 ## Models
 

@@ -248,7 +248,7 @@
       "zone": "box",
       "status": "in_hand",
       "name": "Screen computer",
-      "hint": "LilyGO T5-4.7-S3 Touch (H716): 4.7 inch e-paper, 960 x 540, 16 grey levels, capacitive touch, its own ESP32-S3. Needs its own computer because this parallel e-paper panel needs a dedicated driver chip. Connected by WiFi (locked). Powered from the box's 5 V. Touch chip GT911 (confirmed 2026-09-29 by an I2C scan: address 0x5D)."
+      "hint": "LilyGO T5-4.7-S3 Touch (H716): 4.7 inch e-paper, 960 x 540, 16 grey levels, capacitive touch, its own ESP32-S3. Needs its own computer because this parallel e-paper panel needs a dedicated driver chip. Connected by WiFi (locked). Powered from the box's 5 V. Touch chip GT911 (I2C 0x5D). Measured 2026-09-29: glass 120.1 x 66.77, visible 56.95 x 101.9, screen folds onto the board on 3M pads, stack 11.9, 7 holes 3.94."
     },
     {
       "id": "amp",
@@ -1534,6 +1534,7 @@
     "Pin assignment on the doorbell and talk computers: proposed, to be confirmed on the bench (the button needs an analog ADC1 input).",
     "WiFi signal for the screen and the talk computer inside the box: on-site test.",
     "LED strip type (RGBW): bench check.",
+    "CAD: brass window and speaker-block clearance against the measured screen glass.",
     "CAD: the grille cavity floor slopes the wrong way (water would pool at the speaker)."
   ],
   "milestones": [

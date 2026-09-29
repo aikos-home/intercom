@@ -59,6 +59,11 @@ What happened, in order, including the dead ends. Dates are 2026.
   [`tools/touch_scan.py`](../tools/touch_scan.py); it runs on MicroPython.
 - **Lesson:** read out the whole flash before flashing anything. The factory program went into a
   16 MB backup first, so it can be put back byte for byte.
+- Measured with a caliper, because LilyGO publishes none of it: seven mounting holes, the touch glass,
+  the visible picture area and the folded stack ([numbers](../hardware/parts/lilygo-t5-s3-touch-measured.md)).
+- **Surprise:** the screen arrives loose on two ribbons and is folded onto the board by the buyer.
+- **Lesson:** a datasheet's active area is not what you see. The glass's white print hides almost 1 mm
+  on every side, and the brass window has to be sized to what is visible.
 
 ## Next
 
