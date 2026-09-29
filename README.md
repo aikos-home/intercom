@@ -61,10 +61,11 @@ can never silence it. Details, power budget and the winter heater: [docs/archite
 | [`docs/family-app.md`](docs/family-app.md) | the planned self-hosted app for the household |
 | [`hardware/`](hardware/) | front sheet, box and diffuser: generator scripts, STL and STEP, part drawings |
 | [`explorer/`](explorer/) | the interactive map and its build |
+| [`firmware/screen/`](firmware/screen/) | ESPHome firmware for the screen, with a flash-free fast refresh |
 | [`tools/`](tools/) | the privacy scan that runs before every push, and bench test scripts |
 
-Firmware (ESPHome YAML) and the Home Assistant automations will be added once they have
-passed the bench tests.
+The firmware for the doorbell and talk computers and the Home Assistant automations will be added
+once they have passed the bench tests.
 
 ## Safety
 
@@ -77,7 +78,8 @@ passed the bench tests.
 
 ## Licences
 
-- Code (scripts, explorer, firmware): [MIT](LICENSE)
+- Code (scripts, explorer, firmware): [MIT](LICENSE), except the screen driver in
+  `firmware/screen/components/`, which keeps its upstream licence (GPLv3 for C/C++)
 - Hardware designs (CAD scripts, STL, STEP, drawings): [CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)
 - Documentation and images: [CC BY 4.0](LICENSES/CC-BY-4.0.txt)
 

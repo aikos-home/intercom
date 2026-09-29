@@ -65,6 +65,14 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** a datasheet's active area is not what you see. The glass's white print hides almost 1 mm
   on every side, and the brass window has to be sized to what is visible.
 
+- The screen runs ESPHome. The community driver wiped the whole panel black and white before every
+  picture: two seconds of flashing, which at a door looks like a fault. The driver in
+  [`firmware/screen/`](../firmware/screen/) now moves each pixel only by the difference between its
+  old and new grey, all changed rows in one sweep, in a background task so touch is never ignored.
+  A tap changes the picture in about half a second, without a flash.
+- **Lesson:** lightening a pixel also fades its neighbours. Thin lines next to changed pixels vanished
+  until the driver re-darkened them.
+
 ## Next
 
 The plan from here is the [roadmap](roadmap.md): all hardware on the table, measure and

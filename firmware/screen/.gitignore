@@ -1,0 +1,5 @@
+.esphome/
+*.log
+touch-log*.txt
+secrets.yaml
+local-assets/
