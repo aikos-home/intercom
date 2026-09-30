@@ -1,6 +1,6 @@
 # Roadmap
 
-State: 2026-09-29. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
+State: 2026-09-30. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
 the interactive version is the roadmap section of the [explorer](../explorer/).
 
 `[x]` done · `[~]` under way · `[ ]` to do · `◆` a decision that must be locked in
@@ -39,7 +39,7 @@ Needs: M0 Concept and architecture
 - [ ] Place the order: cable, cable gland, heater, seals, small parts
 - [x] In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses
 - [x] Everything ordered so far has arrived (the screen computer last, 29 Sep)
-- [ ] Bench checks on arrival: touch chip (I²C scan), LED strip really RGBW, heater switch triggers at 3.3 V
+- [ ] Bench checks on arrival: touch chip ✓ (GT911, 29 Sep), LED strip really RGBW, heater switch triggers at 3.3 V
 
 *Done when:* Every part of the final build is here and identified.
 
@@ -51,7 +51,7 @@ Find out whether everything fits before designing the real box: first the parts 
 
 Needs: M1 All hardware on the table
 
-- [ ] Measure everything the makers don't publish: display mounting holes, board heights, microphone, splitter
+- [ ] Measure everything the makers don't publish: display ✓ (holes, glass, stack, 29 Sep), doorbell computer, microphone, splitter
 - [ ] Count every cable and connector that enters the box
 - [ ] Alpha print 1: all parts in place, no cables
 - [ ] Alpha print 2: the same with all the internal wiring

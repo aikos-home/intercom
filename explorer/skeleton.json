@@ -1,6 +1,6 @@
 {
-  "state": "2026-09-29",
-  "_about": "Structure of the Klingelbox explorer, state 2026-09-24. Architecture (decided 2026-09-24): ONE PoE cable into the box, no switch in the box. Three computers: the WT32-ETH01 is the wired doorbell computer (button, light, heater, climate sensor) on the splitter's data port; the Waveshare ESP32-S3-ETH is the talk computer (microphone, amplifier) on WiFi; the LilyGO T5 4.7 S3 Touch drives the screen on WiFi. Splitter output voltage (12 V shown) is still pending. Hints carry the facts writers may use; writers add no new facts.",
+  "state": "2026-09-30",
+  "_about": "Structure of the Klingelbox explorer, state 2026-09-30. UPDATE 2026-09-30: the doorbell computer is the Waveshare ESP32-S3-ETH (bench-tested); the WT32-ETH01 was dropped because it always booted into download mode. The talk computer board and the power path (splitter, or the doorbell computer's plug-on PoE module) are being re-decided; the diagram keeps the 24.09 layout for them. Architecture (decided 2026-09-24): ONE PoE cable into the box, no switch in the box. Three computers: the WT32-ETH01 is the wired doorbell computer (button, light, heater, climate sensor) on the splitter's data port; the Waveshare ESP32-S3-ETH is the talk computer (microphone, amplifier) on WiFi; the LilyGO T5 4.7 S3 Touch drives the screen on WiFi. Splitter output voltage (12 V shown) is still pending. Hints carry the facts writers may use; writers add no new facts.",
   "zones": [
     {
       "id": "internet",
@@ -206,7 +206,7 @@
       "zone": "box",
       "status": "pending",
       "name": "PoE splitter",
-      "hint": "Industrial PoE splitter inside the box, rated down to -40 C, isolated: separates the cable into data (to the doorbell computer) and DC power. Shown with a 12 V output (candidate TRENDnet TI-SG104, -40 to +75 C, 802.3af to bt); a 5 V-output Waveshare industrial splitter (Amazon B0D795H51H) is the alternative still being decided."
+      "hint": "Industrial PoE splitter inside the box, rated down to -40 C, isolated: separates the cable into data (to the doorbell computer) and DC power. Shown with a 12 V output (candidate TRENDnet TI-SG104, -40 to +75 C, 802.3af to bt); a 5 V-output Waveshare industrial splitter (Amazon B0D795H51H) is the alternative still being decided. Possibly not needed at all: the doorbell computer's plug-on PoE module could power the box instead (its power rating is still to be checked)."
     },
     {
       "id": "pololu",
@@ -234,14 +234,14 @@
       "zone": "box",
       "status": "in_hand",
       "name": "Doorbell computer",
-      "hint": "WT32-ETH01 (classic ESP32 with LAN8720 Ethernet and its own RJ45 socket), already owned. The wired doorbell computer on the splitter's data port. Runs only standard ESPHome: the supervised button line, the LED light, the climate sensor, the heater thermostat and a power governor (heater off during calls and for 5 minutes after a press). Keeps the device name 'klingel' so existing automations carry over. Rated -40 to +85 C. Its regulator must see no more than about 6 V, so it gets 5 V. An audio crash or a talk update can never take the bell down, because the bell runs on its own board."
+      "hint": "Waveshare ESP32-S3-ETH (ESP32-S3 with W5500 Ethernet, USB-C, plug-on PoE Module (B)), in hand and bench-tested 30 Sep 2026: supervised button line on IO1, sampled every millisecond, every press reaches Home Assistant. Replaced the WT32-ETH01 planned first, which always started in download mode (its Ethernet clock holds the IO0 boot pin low) and so could not restart on its own after a power cut. Runs only standard ESPHome: the button line, the LED light, the climate sensor, the heater thermostat and a power governor. An audio crash or a talk update can never take the bell down."
     },
     {
       "id": "waveshare",
       "zone": "box",
-      "status": "in_hand",
+      "status": "pending",
       "name": "Talk computer",
-      "hint": "Waveshare ESP32-S3-POE-ETH (ESP32-S3, 8 MB PSRAM), already owned. Talk only: microphone and amplifier, on WiFi, with the community 'VoIP Stack' for ESPHome and Home Assistant (experimental until bench-tested). Its W5500 Ethernet stays unused as a wired fallback; its plug-on PoE module is for desk tests only. Fed with 5 V on header pin 39 (VSYS)."
+      "hint": "Board re-decided 30 Sep 2026: the Waveshare ESP32-S3-ETH became the doorbell computer. The talk software (community 'VoIP Stack') needs an ESP32-S3 with PSRAM; an ESP32-S3 N16R8 dev board (16 MB flash, 8 MB PSRAM) is in hand as a candidate. Talk only: microphone and amplifier, on WiFi. Fed with 5 V."
     },
     {
       "id": "lilygo",
@@ -525,7 +525,7 @@
       "layer": "v5",
       "method": "header",
       "decided": true,
-      "hint": "5 V into the talk computer's VSYS header pin (pin 39); check with a meter before first power-up. Never plug USB-C into a PC while this is live, unless the cable blocks power."
+      "hint": "5 V into the talk computer's supply input. Which pin depends on the board, which is being re-decided."
     },
     {
       "id": "e_rail_wt32",
@@ -534,7 +534,7 @@
       "layer": "v5",
       "method": "header",
       "decided": true,
-      "hint": "5 V into the doorbell computer's 5V pin. Never feed 5 V and 3.3 V at the same time; its regulator must not see more than about 6 V."
+      "hint": "5 V into the doorbell computer's VSYS header pin (supply input), or from its own PoE module if that powers the box. Check with a meter before the first power-up."
     },
     {
       "id": "e_rail_lilygo",
@@ -741,7 +741,7 @@
       "layer": "button",
       "method": "header",
       "decided": true,
-      "hint": "The measured line voltage into an ADC1-capable analog pin (for example GPIO1). ADC1 because ADC2 is unusable while WiFi runs; the doorbell computer uses Ethernet, but ADC1 keeps the option open."
+      "hint": "The measured line voltage into IO1 (ADC1), bench-tested. The ESP's internal pull-up is on too, so a loose signal wire reads as cut, not as a press."
     },
     {
       "id": "e_lilygo_ap",
@@ -965,7 +965,7 @@
           "edges": [
             "e_button_line"
           ],
-          "hint": "Pressing closes the contacts: the line voltage drops from about 1.73 V to about 0.30 V."
+          "hint": "Pressing closes the contacts: the line voltage drops from about 2.0 V to about 0.4 V."
         },
         {
           "nodes": [
@@ -975,7 +975,7 @@
           "edges": [
             "e_line_wt32"
           ],
-          "hint": "The doorbell computer samples the line every 40 ms and confirms 'pressed' within about 80 to 120 ms (median filter)."
+          "hint": "The doorbell computer samples the line every millisecond; below 1.30 V it is 'pressed', and only above 1.60 V released again, so a wobbly contact counts once."
         },
         {
           "nodes": [
@@ -1524,14 +1524,19 @@
     },
     {
       "node": "waveshare",
-      "hint": "Only the header pins you use (the PoE bundle ships 2 x 20 loose pins), or wires directly."
+      "hint": "Board for the talk computer not chosen yet."
+    },
+    {
+      "node": "wt32",
+      "hint": "Pin header row IO43 ... VBUS soldered (3V3, IO1 and GND are used for the button line); the kit comes with loose headers."
     }
   ],
   "pending": [
+    "Talk computer board and power path (splitter, or the doorbell computer's PoE module feeding the box): re-decided after the WT32-ETH01 was dropped on 30 Sep 2026.",
     "Two-way talk: chosen (VoIP Stack on the talk computer, walkie-talkie mode as fallback) but not yet proven on the bench. Push-to-talk into the house speakers and Telegram voice messages are not designed yet.",
     "Splitter output 12 V or 5 V, and with it the heater voltage.",
     "PoE power budget: ring plus call plus heater comes close to the 802.3af limit (about 12 of 12.95 W). The doorbell computer switches the heater off during calls; the real draw is not measured yet.",
-    "Pin assignment on the doorbell and talk computers: proposed, to be confirmed on the bench (the button needs an analog ADC1 input).",
+    "Pin assignment on the talk computer (board being re-decided). The doorbell button is on IO1 (bench-tested).",
     "WiFi signal for the screen and the talk computer inside the box: on-site test.",
     "LED strip type (RGBW): bench check.",
     "CAD: brass window and speaker-block clearance against the measured screen glass.",
