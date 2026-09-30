@@ -9,6 +9,15 @@ two-way talk, and one PoE cable. Built on ESP32, ESPHome and Home Assistant. No 
 > prototypes. Nothing is installed at a door yet. State of this page: 24 September 2026.
 
 <p align="center">
+  <img src="docs/images/intercom-render.jpg" width="330" alt="AI-generated concept render: a brushed brass door plate with a folded rain roof and a warm light band under it, a slotted speaker grille, a portrait e-paper screen saying Hallo! Bitte klingeln. with a QR code, engraved placeholder names and a round brass button">
+  &nbsp;&nbsp;
+  <a href="https://github.com/aikos-home/roomkey"><img src="https://github.com/aikos-home/roomkey/raw/main/docs/north-star.jpg" width="200" alt="AI-generated concept render of the RoomKey: a white light-switch frame with a portrait touch screen key in the middle and a soft amber glow"></a>
+  <br><em>Target design: AI-generated concept renders (Google Gemini), not photos of built devices. The engraved names are
+  placeholders. Right: its counterpart in the rooms, the <a href="https://github.com/aikos-home/roomkey">RoomKey</a>.
+  Both are part of <a href="https://github.com/aikos-home">aikos</a>.</em>
+</p>
+
+<p align="center">
   <img src="hardware/front-sheet/layout-v5-referenz.png" width="520" alt="Front view and side section of the brass front: speaker grille, portrait e-paper screen, engraved names, round brass button, folded rain roof with a light band">
 </p>
 

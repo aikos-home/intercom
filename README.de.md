@@ -10,6 +10,15 @@ Keine Kamera, niemals.**
 > 3D-gedruckte Prototypen. An einer Tür ist noch nichts montiert. Stand dieser Seite: 24.09.2026.
 
 <p align="center">
+  <img src="docs/images/intercom-render.jpg" width="330" alt="KI-erzeugtes Konzeptbild: gebürstete Messingplatte an der Tür mit gekantetem Regendach und warmem Lichtband darunter, Lautsprecherschlitze, E-Paper-Bildschirm im Hochformat mit Hallo! Bitte klingeln. und QR-Code, gravierte Platzhalternamen und runder Messingtaster">
+  &nbsp;&nbsp;
+  <a href="https://github.com/aikos-home/roomkey"><img src="https://github.com/aikos-home/roomkey/raw/main/docs/north-star.jpg" width="200" alt="KI-erzeugtes Konzeptbild des RoomKey: weißer Lichtschalterrahmen mit einer Touchscreen-Taste im Hochformat in der Mitte und sanftem bernsteinfarbenem Leuchten"></a>
+  <br><em>Zielbild: KI-erzeugte Konzeptbilder (Google Gemini), keine Fotos gebauter Geräte. Die gravierten Namen sind
+  Platzhalter. Rechts: das Gegenstück in den Zimmern, der <a href="https://github.com/aikos-home/roomkey">RoomKey</a>.
+  Beide gehören zu <a href="https://github.com/aikos-home">aikos</a>.</em>
+</p>
+
+<p align="center">
   <img src="hardware/front-sheet/layout-v5-referenz.png" width="520" alt="Vorderansicht und Seitenschnitt der Messingfront: Lautsprechergitter, E-Paper-Bildschirm im Hochformat, gravierte Namen, runder Messingtaster, gekantetes Regendach mit Lichtband">
 </p>
 
