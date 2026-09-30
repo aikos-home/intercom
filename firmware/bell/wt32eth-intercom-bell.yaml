@@ -34,6 +34,10 @@ esphome:
   name: wt32eth-intercom-bell
   friendly_name: WT32ETH Intercom Bell
 
+udp:
+  addresses:
+    - !secret ring_target_1
+
 esp32:
   board: esp32dev
   framework:

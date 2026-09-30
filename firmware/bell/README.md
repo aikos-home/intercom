@@ -17,6 +17,15 @@ Build and flash once over USB-C, after that over the network:
 esphome run s3poeeth-intercom-bell.yaml
 ```
 
+## Direct ring path
+
+Every press goes to Home Assistant **and**, at the same time, straight to the room keys over encrypted UDP (ESPHome
+`packet_transport`, port 18511, unicast to each key's address, rolling code against replays), so the gong still
+sounds while Home Assistant restarts. Each packet carries `boot_id` (24-bit random per boot; `packet_transport`
+sends values as 32-bit floats, so larger integers would arrive rounded), `presses` (press number since boot) and
+`ringing` (on while the button is held, off on release or after the adjustable maximum duration: holding rings one
+continuous gong, like a school bell). A key rings once per new `(boot_id, presses)`, whichever path delivers it first.
+
 ## The supervised line
 
 ```

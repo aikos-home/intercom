@@ -21,6 +21,14 @@ substitutions:
 esphome:
   name: s3poeeth-intercom-bell
   friendly_name: S3POEETH Intercom Bell
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.2.0"
+
+# Direct ring path: unicast to each RoomKey's fixed address (addresses live in secrets.yaml, never in the repo).
+udp:
+  addresses:
+    - !secret ring_target_1
 
 esp32:
   board: esp32-s3-devkitc-1
