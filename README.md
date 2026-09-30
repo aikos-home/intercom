@@ -43,8 +43,8 @@ Three small computers share one cable and one 5 V rail, and nothing else:
 
 | Computer | Board | Link | Job |
 |---|---|---|---|
-| Doorbell | WT32-ETH01 | wired | button line, light, heater, climate sensor |
-| Talk | Waveshare ESP32-S3-POE-ETH | WiFi | microphone, amplifier, calls |
+| Doorbell | Waveshare ESP32-S3-ETH (PoE module) | wired | button line, light, heater, climate sensor |
+| Talk | open: an ESP32-S3 with PSRAM | WiFi | microphone, amplifier, calls |
 | Screen | LilyGO T5-4.7-S3 Touch | WiFi | e-paper touch screen |
 
 The bell runs on its own board with stock ESPHome only, so a crash or an update in the audio code

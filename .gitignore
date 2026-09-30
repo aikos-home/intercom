@@ -5,3 +5,5 @@ hardware/cad/out/
 .venv/
 .DS_Store
 Thumbs.db
+secrets.yaml
+.esphome/

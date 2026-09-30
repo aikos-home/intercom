@@ -24,8 +24,8 @@ joint and solder spot, and walks through what happens on a ring, in winter, at d
 
 | Computer | Board | Link | Job |
 |---|---|---|---|
-| Doorbell computer | WT32-ETH01 (ESP32 + LAN8720) | wired, on the splitter's data port | button line, light, heater, climate sensor, power governor |
-| Talk computer | Waveshare ESP32-S3-POE-ETH | WiFi | microphone, amplifier, two-way talk |
+| Doorbell computer | Waveshare ESP32-S3-ETH (W5500), PoE via its plug-on module | wired | button line, light, heater, climate sensor, power governor |
+| Talk computer | open: an ESP32-S3 with PSRAM (the talk stack needs it) | WiFi | microphone, amplifier, two-way talk |
 | Screen computer | LilyGO T5-4.7-S3 Touch (H716) | WiFi | 4.7" e-paper touch screen behind the brass window |
 
 Why three and not one: the bell is the one function that must never fail. A crash or an update
@@ -38,16 +38,19 @@ The e-paper panel is a parallel panel that needs its own driver board anyway.
    100 nF to ground, and a 10 kΩ end-of-line resistor soldered straight across the button.
    That gives three distinct voltages on an analog (ADC1) input:
 
-   | State | Voltage |
+   | State | Voltage (measured on the bench, with the ESP's internal pull-up on) |
    |---|---|
-   | idle | about 1.73 V |
-   | pressed | about 0.30 V |
-   | wire cut | about 3.1 to 3.3 V |
+   | idle | 2.03 V |
+   | pressed | 0.34 to 0.47 V (a half-closed contact: 0.6 to 0.9 V) |
+   | wire cut | 3.18 V |
 
    A cut or corroded wire is reported instead of going silent. The pull-up exists because a
-   floating input on the first prototype produced 134 phantom rings in 15 minutes.
-2. The doorbell computer samples every 40 ms and confirms a press with a median filter
-   (about 80 to 120 ms).
+   floating input on the first prototype produced 134 phantom rings in 15 minutes. The ESP's own
+   pull-up is switched on as well, so a loose signal wire reads as "cut", not as a press.
+2. The doorbell computer samples the line every millisecond. A press starts below 1.30 V and ends
+   only above 1.60 V, so a wobbly contact is still one press, and every change goes to Home
+   Assistant at once (ESPHome's default 100 ms batching is off). Bench results and the reasons are
+   in [`firmware/bell/`](../firmware/bell/).
 3. It sends the ring event **first**, over the cable, to Home Assistant, which pushes a
    high-priority notification to the phone (target: under 1 second, not yet measured).
 4. Only then does the door give local feedback: the light flashes, the screen changes.

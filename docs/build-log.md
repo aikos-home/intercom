@@ -81,6 +81,23 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** e-paper must be driven balanced. A test animation that lightened pixels more than it had
   darkened them left a faint ring after about a hundred frames that even a flash did not remove at once.
 
+- The doorbell computer moved boards. The WT32-ETH01 booted once, then always started in download
+  mode: its IO0 is both the boot-mode pin and the Ethernet clock input, and the oscillator holds it
+  low. Pull-ups of 10 kΩ and 1 kΩ did not win, and a doorbell must restart on its own after a power
+  cut. The Waveshare ESP32-S3-ETH took over: no clock on a boot pin, USB-C, PoE via a plug-on module.
+  It started on the first try and Home Assistant found it by itself.
+- **Lesson:** read the boot line before blaming the software. `boot:0x3` means the chip never ran any
+  program at all; the [probe scripts](../tools/wt32/) show it without unplugging anything.
+
+- The bell rings, on the bench: brass button, supervised line on a breadboard, firmware in
+  [`firmware/bell/`](../firmware/bell/), updates over the network. Slow presses 10 of 10; storm ringing
+  filmed in slow motion, 14 of 15 counted, and the 15th only grazed the contact for 1 ms.
+- **Lesson:** ESPHome collects API updates for 100 ms by default. Two quick presses inside one batch
+  arrive as one, so storm ringing showed 2 of 5. Setting the batch delay to 0 fixed it.
+- **Lesson:** a loose wire on an analog pin looks like a press, and a half-closed brass contact
+  hovers right at a single threshold. The internal pull-up and a two-threshold hysteresis fixed both.
+- Cable cut and short circuit are both reported, after 10 and 60 seconds.
+
 ## Next
 
 The plan from here is the [roadmap](roadmap.md): all hardware on the table, measure and

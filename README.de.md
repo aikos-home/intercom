@@ -43,8 +43,8 @@ Drei kleine Rechner teilen sich ein Kabel und eine 5-V-Schiene, sonst nichts:
 
 | Rechner | Platine | Verbindung | Aufgabe |
 |---|---|---|---|
-| Klingel | WT32-ETH01 | Kabel | Klingelleitung, Licht, Heizung, Klimasensor |
-| Sprechen | Waveshare ESP32-S3-POE-ETH | WLAN | Mikrofon, Verstärker, Gespräche |
+| Klingel | Waveshare ESP32-S3-ETH (PoE-Modul) | Kabel | Klingelleitung, Licht, Heizung, Klimasensor |
+| Sprechen | offen: ein ESP32-S3 mit PSRAM | WLAN | Mikrofon, Verstärker, Gespräche |
 | Bildschirm | LilyGO T5-4.7-S3 Touch | WLAN | E-Paper-Touchscreen |
 
 Die Klingel läuft auf einer eigenen Platine nur mit Standard-ESPHome. Ein Absturz oder ein Update
