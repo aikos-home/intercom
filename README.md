@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SDLLABS Intercom
 
 A local-first video intercom and access-control project built on [Aikos intercom](https://github.com/aikos-home/intercom). SDLLABS preserves its independent supervised bell and adds a separate ESP32-P4 multimedia path and an indoor-only access boundary. **The added media and access hardware are not deployed or validated as a complete system.**
@@ -5,6 +6,16 @@ A local-first video intercom and access-control project built on [Aikos intercom
 The original Aikos design deliberately excluded cameras. This fork keeps its separation and reliability philosophy while exploring camera and audio on another processor. The physical button and direct ring never wait for video, the P4, Home Assistant, or an access decision.
 
 ## Architecture
+=======
+# OpenIntercom
+
+**An open-hardware door intercom: a brass front flush in the facade, an e-paper touch screen,
+two-way talk, camera and one PoE cable. Built on ESP32, ESPHome and Home Assistant. **
+
+
+> Status: prototype. The parts are on the bench, the front and the box exist as 3D-printed
+> prototypes. Nothing is installed at a door yet. State of this page: 01 october 2026.
+>>>>>>> origin/main
 
 This diagram shows intended boundaries. The inherited bell and screen have documented device bench results; the P4 is a bring-up skeleton and the indoor controller is host-tested design code.
 
