@@ -12,9 +12,11 @@ Place all strike/gate switching, actuator power paths, credential policy, reques
 
 The indoor verifier must reject unauthenticated, malformed, stale or replayed requests, apply rate limits and credential policy, and keep relays de-energized at boot, reset and fault. A firmware timer plus an independent maximum-on mechanism bound pulse length. PINs are not stored or logged in plaintext; temporary credentials have bounded time/uses and revocation. Caller ID alone cannot authorize a main entrance.
 
+Indoor verification protects relay authority, but a keypad attached to the physically untrusted P4 lets a compromised P4 observe PIN entry. Two assurance models remain open: a P4-connected keypad for convenience credentials with bounded scope and revocation, or a dedicated secure keypad/controller communicating directly with the indoor access controller for higher-assurance credentials. Encryption from P4 to indoors cannot conceal a PIN already observed by P4. This ADR does not select keypad hardware.
+
 ## Consequences
 
-WP4 must specify principal identity, key provisioning/rotation, authentication, freshness and reboot behavior before coding. Physical P4 compromise remains able to submit attempts as its own principal; indoor lockout and constrained permissions limit that risk. Controller loss means no remote unlock. Exact fail-secure/egress behavior, actuator polarity, cutoff circuit, and local code requirements need hardware review before installation.
+WP4 must specify principal identity, key provisioning/rotation, authentication, freshness, reboot behavior and credential classes for each keypad assurance model before coding. Physical P4 compromise remains able to submit attempts as its own principal and read PINs entered through it; indoor lockout, credential scope and revocation limit that risk. Controller loss means no remote unlock. Exact fail-secure/egress behavior, actuator polarity, cutoff circuit, and local code requirements need hardware review before installation.
 
 ## Rejected alternatives
 

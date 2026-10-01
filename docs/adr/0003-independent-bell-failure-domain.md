@@ -12,7 +12,7 @@ Keep the existing bell MCU and `firmware/bell/` as an independently updated crit
 
 ## Consequences
 
-Later changes require regression checks for press detection, line cut/short, direct delivery with HA down, and media crash isolation. Separate processors do not eliminate shared PoE/switch/cable/RoomKey failures. Hardware design must prioritize bell power, provide offline diagnostics, and characterize the common-cause cases. A bell MCU crash still loses physical button sensing; it must be reported rather than concealed.
+Later changes require regression checks for press detection, line cut/short, direct delivery with HA down, and media crash isolation. The target has one outdoor CAT6/PoE feed but both bell and P4 require wired Ethernet. WP2 must resolve coexistence with an internal Ethernet switch and power distribution or an equivalent wired topology; it must not silently move the bell to Wi-Fi. Separate processors do not eliminate shared PoE/switch/cable/RoomKey failures. Hardware design must prioritize bell power, provide offline diagnostics, and characterize the common-cause cases. A bell MCU crash still loses physical button sensing; it must be reported rather than concealed.
 
 ## Rejected alternatives
 

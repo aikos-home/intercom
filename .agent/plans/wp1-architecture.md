@@ -49,3 +49,22 @@ WP1 documentation complete. Relative links and whitespace checked; source/implem
 ## Final result
 
 Created v2 architecture, provenance map, module structure, four ADRs and follow-up work packages. No functional firmware or OpenChime source was added. Validation: local documentation link/whitespace check and `git diff --check`; hardware and ESP-IDF builds were not run because this is documentation-only work. Remaining risks are target-board/media feasibility, shared PoE/LAN/RoomKey failure, controller hardware/cutoff/egress qualification and exact access cryptography/provisioning.
+
+## WP1.1 architecture hardening — 2026-10-01
+
+### Goal and scope
+
+Clarify outdoor PIN exposure, the single-CAT6 wired topology, and the distinction between documented P4 H.264 silicon capability and board/stream feasibility. Documentation only; no keypad hardware selection or firmware.
+
+### Work and decisions
+
+- [x] Re-read `AGENTS.md`, handoff, architecture, provenance map and ADRs 0001–0004.
+- [x] Verify H.264 Baseline 1080p30, MIPI-CSI and ISP against the Espressif ESP32-P4 datasheet.
+- [x] Document P4-connected convenience credentials versus a dedicated direct indoor keypad path; indoor verification does not hide a PIN entered through P4.
+- [x] Require WP2 to resolve two wired Ethernet devices and power behind one outdoor CAT6/PoE feed without moving the bell to Wi-Fi.
+- [x] Assign board/camera/PoE/PSRAM/NOR/audio validation to WP2 and end-to-end media/latency/resource work to WP3.
+- [x] Run documentation/link and `git diff --check` checks; commit the focused result.
+
+### Validation and remaining risks
+
+Relative Markdown links and whitespace passed (seven documents, nine relative links); `git diff --check` passed. No firmware build or hardware test applies. The selected board, Ethernet switch/power distribution, sensor/driver and keypad assurance hardware remain open; shared network/power failures still need bench tests.

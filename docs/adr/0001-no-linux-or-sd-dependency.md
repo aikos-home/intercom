@@ -12,7 +12,7 @@ Use ESP32-P4 firmware booting from on-board NOR flash. Core operation, including
 
 ## Consequences
 
-WP2 must choose a board/flash/partition layout and demonstrate Ethernet, camera, codec and audio without SD. WP3 must establish actual ESP-IDF media feasibility and resource limits; Linux libraries or Pi drivers cannot be assumed portable. NOR writes need wear bounds. Failed updates must return to known-good firmware. Exact secure-boot, flash encryption and signing choices require board-specific design and validation.
+The [Espressif ESP32-P4 datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-p4_datasheet_en.pdf) establishes a Baseline H.264 encoder with up to 1080p30 YUV420 performance, MIPI-CSI and ISP on the SoC. WP2 must still choose and validate the actual board, camera sensor/driver, Ethernet/PoE, PSRAM/NOR, audio and flash partition layout, and demonstrate capture/encode without SD. WP3 owns end-to-end streaming, RTSP/WebRTC, Opus/AEC, latency and resource budgets; Linux libraries or Pi drivers cannot be assumed portable. NOR writes need wear bounds. Failed updates must return to known-good firmware. Exact secure-boot, flash encryption and signing choices require board-specific design and validation.
 
 ## Rejected alternatives
 
