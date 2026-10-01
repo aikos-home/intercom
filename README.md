@@ -1,12 +1,11 @@
-# Klingelbox
+# OpenIntercom
 
 **An open-hardware door intercom: a brass front flush in the facade, an e-paper touch screen,
-two-way talk, and one PoE cable. Built on ESP32, ESPHome and Home Assistant. No camera, ever.**
+two-way talk, camera and one PoE cable. Built on ESP32, ESPHome and Home Assistant. **
 
-[Deutsch](README.de.md)
 
 > Status: prototype. The parts are on the bench, the front and the box exist as 3D-printed
-> prototypes. Nothing is installed at a door yet. State of this page: 24 September 2026.
+> prototypes. Nothing is installed at a door yet. State of this page: 01 october 2026.
 
 <p align="center">
   <img src="docs/images/intercom-render.jpg" width="330" alt="AI-generated concept render: a brushed brass door plate with a folded rain roof and a warm light band under it, a slotted speaker grille, a portrait e-paper screen saying Hallo! Bitte klingeln. with a QR code, engraved placeholder names and a round brass button">
