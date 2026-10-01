@@ -1,0 +1,7 @@
+# Indoor access controller skeleton
+
+`access_core.c` is a portable, allocation-free verifier, attempt limiter and relay state machine for WP4. It contains no board-specific relay pin, network listener, credential database or secret. `access_core.h` defines adapters that a future protected indoor MCU implementation must provide. The `force_cutoff_off` adapter must force the independent power cutoff safe even if the relay driver cannot deassert; it must never bypass or disable the safety cutoff. Until then this is **host-testable design code, not deployable access-control firmware**.
+
+Run `make test` for the host tests. The test harness uses OpenSSL only to model a HMAC provider; the product crypto/transport adapter is not selected. The core requires a trusted authenticated confidential-channel assertion and a per-principal MAC verifier. It cannot be called safely from a raw UDP/MQTT handler. The caller must wipe sensitive receive buffers after dispatch, ensure transport identity equals `principal_id`, and serialize controller calls.
+
+The P4 keypad path is restricted to scoped convenience credentials. A higher-assurance keypad needs its own protected direct path indoors. No keypad hardware is selected. The transport must supply its authenticated peer ID to both core entry points; the core checks that a request frame names the same principal. See [protocol](../../protocol/access.md) and [hardware gates](../../hardware/access-controller/README.md).
