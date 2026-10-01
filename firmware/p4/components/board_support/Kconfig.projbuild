@@ -1,0 +1,9 @@
+menu "SDLLABS P4 bench board"
+    choice P4_BENCH_BOARD
+        prompt "Bench board profile"
+        default P4_BOARD_FUNCTION_EV_V152
+
+        config P4_BOARD_FUNCTION_EV_V152
+            bool "Espressif Function EV v1.5.2 (EOL bench reference)"
+    endchoice
+endmenu
