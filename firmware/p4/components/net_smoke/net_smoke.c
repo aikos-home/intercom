@@ -43,21 +43,22 @@ esp_err_t net_smoke_start(void)
     eth_esp32_emac_config_t emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
     emac_config.smi_gpio.mdc_num = board_eth->mdc_gpio;
     emac_config.smi_gpio.mdio_num = board_eth->mdio_gpio;
+    emac_config.interface = EMAC_DATA_INTERFACE_RMII;
+    emac_config.clock_config.rmii.clock_mode = EMAC_CLK_EXT_IN;
+    emac_config.clock_config.rmii.clock_gpio = board_eth->rmii.ref_clk_input_gpio;
+    emac_config.emac_dataif_gpio.rmii.crs_dv_num = board_eth->rmii.crs_dv_gpio;
+    emac_config.emac_dataif_gpio.rmii.rxd0_num = board_eth->rmii.rxd0_gpio;
+    emac_config.emac_dataif_gpio.rmii.rxd1_num = board_eth->rmii.rxd1_gpio;
+    emac_config.emac_dataif_gpio.rmii.txd0_num = board_eth->rmii.txd0_gpio;
+    emac_config.emac_dataif_gpio.rmii.txd1_num = board_eth->rmii.txd1_gpio;
+    emac_config.emac_dataif_gpio.rmii.tx_en_num = board_eth->rmii.tx_en_gpio;
     esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&emac_config, &mac_config);
     if (mac == NULL) return ESP_ERR_NO_MEM;
 
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.phy_addr = board_eth->phy_address;
     phy_config.reset_gpio_num = board_eth->reset_gpio;
-    esp_eth_phy_t *phy = NULL;
-    switch (board_eth->phy_kind) {
-        case P4_PHY_IP101:
-            phy = esp_eth_phy_new_ip101(&phy_config);
-            break;
-        default:
-            mac->del(mac);
-            return ESP_ERR_NOT_SUPPORTED;
-    }
+    esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
     if (phy == NULL) {
         mac->del(mac);
         return ESP_ERR_NO_MEM;
