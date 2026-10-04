@@ -121,6 +121,9 @@ display:
     full_update_every: 100     # safety net; the middle of the bottom bar cleans up by hand
     max_partial_percent: 100   # page switches without the flash too
     lambda: |-
+      demo::overlay_shown = demo::overlay != nullptr && demo::overlay(it);
+      if (demo::overlay_shown)
+        return;
       static const char *const NAMES[8] = {"Zeichnen", "Foto", "Grafik und Symbole", "QR-Codes", "Schrift",
                                            "Graustufen", "Animation", "Fotos 2"};
       const int P = id(page);
@@ -268,6 +271,11 @@ touchscreen:
     on_touch:
       - lambda: |-
           const int x = touch.x, y = touch.y;
+          if (demo::overlay_shown) {
+            if (demo::overlay_touch != nullptr)
+              demo::overlay_touch(x, y);
+            return;
+          }
           id(last_touch) = millis();
           id(cleaned) = false;
           if (y >= 880) {  // bottom bar: back / next are TRUE PAGE CHANGES; middle cycles their style

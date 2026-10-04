@@ -1,0 +1,25 @@
+# aikos Intercom bell: the SAFE firmware (aikos H4 stage 4, the owner 03.10.2026).
+# Lives in the factory partition (partitions-bell.csv) and is written ONLY by a USB flash of this file's factory image;
+# OTA updates never touch it. It is the plain bell (aikos-intercom-bell.yaml: Ethernet only, no bridge, no access point,
+# network watchdog on): it still rings to Home Assistant and straight to the door screen, and accepts updates.
+# The normal firmware boots it after 5 failed boots in a row; it tries the normal firmware again after 60 min, or on the
+# "Start normal firmware" button. Screen and talk computer fall back to the house Wi-Fi meanwhile (no "aikos").
+packages:
+  base: !include aikos-intercom-bell.yaml
+
+esphome:
+  project:
+    name: aikos-home.intercom-bell
+    version: "safe-1.1"
+
+aikos_firmware:
+  role: safe
+  retry_normal_after: 60min
+
+button:
+  - platform: template
+    name: Start normal firmware
+    icon: mdi:restore
+    entity_category: config
+    on_press:
+      - lambda: aikos_firmware::boot_normal_firmware();

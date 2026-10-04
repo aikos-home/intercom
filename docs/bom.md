@@ -34,6 +34,10 @@ Parts marked **measure** have dimensions the maker does not publish. The drawing
 | 2 | Resettable PTC fuse, 0.5 A hold (e.g. FREI PFRA 050) | protects the rail from the LED branch | 0.5 A covers the ~4 LEDs used |
 | 2 | 1000 µF / 25 V low-ESR and 10 µF electrolytic capacitors | at the LED strip and at the amplifier | stripe = minus |
 
+**Bench, 2026-10-04:** all three computers and the amplifier run from the doorbell computer's plug-on PoE Module (B),
+with no separate splitter (4.13 W at the switch port). The splitter decision below stays open until it is clear
+whether that module is fit for the outdoor box.
+
 **The splitter decision**
 
 | | 12 V: TRENDnet TI-SG104 | 5 V: Waveshare industrial PoE splitter |
@@ -51,7 +55,7 @@ Parts marked **measure** have dimensions the maker does not publish. The drawing
 | Qty | Part | Why | Notes |
 |---|---|---|---|
 | 1 | Waveshare ESP32-S3-POE-ETH (board + plug-on PoE Module (B)) | doorbell computer, wired | about €25–32; USB-C, so no serial adapter. Pin headers come loose and must be soldered |
-| 1 | talk computer: open, an ESP32-S3 with PSRAM | two-way talk, on WiFi | the WT32-ETH01 planned first is **not** recommended: see [`firmware/bell/`](../firmware/bell/README.md#why-not-the-wt32-eth01) |
+| 1 | talk computer: an ESP32-S3 dev board (bench: ESP32-S3-N16R8 "HW678") | two-way talk, on WiFi | the WT32-ETH01 planned first is **not** recommended: see [`firmware/bell/`](../firmware/bell/README.md#why-not-the-wt32-eth01) |
 | 1 | LilyGO T5-4.7-S3 **Touch** (SKU H716) | screen computer + 4.7" e-paper, 960 × 540 | about €55 at OpenELAB; several marketplace listings with a touch photo are **not** touch versions; **measure** the mounting holes. Touch chip on ours: GT911 at I²C 0x5D, which ESPHome supports (check yours with `tools/touch_scan.py`) |
 
 ## Audio

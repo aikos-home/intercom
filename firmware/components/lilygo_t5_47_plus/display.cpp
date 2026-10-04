@@ -91,6 +91,43 @@ void LilygoT5_47PlusDisplay::fill(Color color) {
   memset(this->buffer_, fill_byte, this->get_buffer_length_());
 }
 
+void LilygoT5_47PlusDisplay::fill_rect(int x, int y, int w, int h, Color color) {
+  if (this->buffer_ == nullptr || w <= 0 || h <= 0)
+    return;
+  if (this->rotation_ != display::DISPLAY_ROTATION_270_DEGREES) {  // only the door's portrait mode is fast
+    this->filled_rectangle(x, y, w, h, color);
+    return;
+  }
+  // rotation 270 (display_buffer.cpp): physical x = logical y, physical y = height - 1 - logical x
+  const int W = this->get_width_internal(), H = this->get_height_internal();
+  int px0 = y, px1 = y + h - 1, py0 = H - x - w, py1 = H - 1 - x;
+  px0 = std::max(px0, 0);
+  px1 = std::min(px1, W - 1);
+  py0 = std::max(py0, 0);
+  py1 = std::min(py1, H - 1);
+  if (px0 > px1 || py0 > py1)
+    return;
+  // same grey as draw_absolute_pixel_internal(), one nibble per pixel (epd_draw_pixel: odd x = high nibble)
+  const uint8_t luminance =
+      (color.red * 2126 / 10000) + (color.green * 7152 / 10000) + (color.blue * 722 / 10000);
+  const uint8_t nib = (uint8_t) (255 - luminance) >> 4;
+  const uint8_t both = (uint8_t) ((nib << 4) | nib);
+  for (int py = py0; py <= py1; py++) {
+    uint8_t *row = this->buffer_ + py * (W / 2);
+    int a = px0, b = px1;
+    if (a & 1) {  // leading odd pixel: high nibble
+      row[a / 2] = (row[a / 2] & 0x0F) | (uint8_t) (nib << 4);
+      a++;
+    }
+    if (b >= a && !(b & 1)) {  // trailing even pixel: low nibble
+      row[b / 2] = (row[b / 2] & 0xF0) | nib;
+      b--;
+    }
+    if (b >= a)
+      memset(row + a / 2, both, (b - a + 1) / 2);
+  }
+}
+
 void LilygoT5_47PlusDisplay::dump_config() {
   LOG_DISPLAY("", "LilygoT5_47PlusDisplay", this);
   LOG_UPDATE_INTERVAL(this);
@@ -189,12 +226,21 @@ void LilygoT5_47PlusDisplay::display_full_(const uint8_t *fb, uint8_t style) {
   }
   uint32_t t2 = esphome::millis();
 
-  epd_draw_grayscale_image(epd_full_screen(), (uint8_t *) fb);
+  const bool drawn = epd_draw_grayscale_image(epd_full_screen(), (uint8_t *) fb);
   uint32_t t3 = esphome::millis();
 
   epd_poweroff();
   uint32_t t4 = esphome::millis();
 
+  if (!drawn) {
+    // the flash left the panel white: remember that, so no later update assumes the picture is there, and try again
+    ESP_LOGE(TAG, "EPD full draw failed (no draw workers); the panel is white, the next picture is drawn in full");
+    if (this->prev_buffer_ != nullptr)
+      memset(this->prev_buffer_, 0xFF, this->get_buffer_length_());
+    this->force_full_ = true;
+    this->draw_failures_++;
+    return;
+  }
   if (this->prev_buffer_ != nullptr && fb != this->prev_buffer_)
     memcpy(this->prev_buffer_, fb, this->get_buffer_length_());
   this->partial_count_ = 0;

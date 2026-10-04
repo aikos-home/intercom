@@ -116,7 +116,7 @@ void epd_push_pixels(Rect_t area, int16_t time, int32_t color);
  *             over multiple rows, images of uneven width must add a padding
  *             nibble per line.
  */
-void epd_draw_grayscale_image(Rect_t area, uint8_t *data);
+bool epd_draw_grayscale_image(Rect_t area, uint8_t *data);  // Klingelbox: false = not drawn (see epd_draw_image)
 
 /**
  * @brief Draw a picture to a given area, with some draw mode.
@@ -131,7 +131,7 @@ void epd_draw_grayscale_image(Rect_t area, uint8_t *data);
  *             over multiple rows, images of uneven width must add a padding
  *             nibble per line.
  */
-void epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode);
+bool epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode);  // Klingelbox: false = not drawn
 
 /**
  * Klingelbox: draw a per-pixel transition plan in ONE sweep over the rows marked in row_active.

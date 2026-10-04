@@ -1,0 +1,551 @@
+# aikos Intercom Talk: the door station's talk computer (mic + speaker), on Wi-Fi.
+# Bench check PASSED 2026-09-30: mic levels -60..-21 dBFS, two-tone chime audible from the K 40.
+# On the network (Wi-Fi via Improv in the browser, encrypted HA API, OTA), test chime button, mic level in HA.
+# Voice v2 (R17, aikos features/sprechen.md) through the SHARED library aikos_voice: the door is the arbiter of the call.
+#   - a call starts when the visitor presses "Sprechen" on the screen (after a ring) or a room key holds its button
+#   - the door mic is open for the whole call (muted towards the keys while the door speaker plays, +0.3 s)
+#   - the door plays the key that has the floor, only while it holds; ends after 10 s without speech, 5 min at most
+#   - keys talk to the door directly (packet_transport, key_link_key): `key_state` 0 idle / 1 in the call / 2 holding,
+#     one number per packet, so every packet refreshes the hold; the door answers with door_call_id (0 = none),
+#     door_answered and floor_key, sent as broadcast (encrypted) so no key address is compiled in
+#   - which key has which address comes from aikos (sensor.aikos_people keys_json), kept in flash: "Key addresses"
+#
+# Wiring (sheet 2026-09-30, mic clock moved 2026-10-04): INMP441 SCK→GPIO1, WS→GPIO2, SD→GPIO6, L/R→GND; MAX98357A BCLK→GPIO15, LRC→GPIO16,
+# DIN→GPIO17, GAIN and SD free; VISATON K 40 SQ (8 Ω, 1 W max) on the amp's terminal.
+# Power (box wiring 2026-10-03, ../WIRING.md): the board's 5Vin pin (second-to-last of the 3V3 row) gets the bell's 5 V;
+# it works as an INPUT without the IN-OUT solder bridge (only USB → 5V pin output needs it). The amp's Vin sits on the
+# same 5 V rail, not on this board.
+# N16R8: GPIO33–37 belong to the octal PSRAM, 19/20 to USB, 43/44 to the serial chip: none of them used.
+# Flash over the board's "USB" port (native USB, logs too); a factory-fresh board needs BOOT+RST once.
+
+esphome:
+  name: aikos-intercom-talk
+  friendly_name: aikos Intercom Talk
+  comment: "Intercom · ESP32-S3-N16R8 (HW678)"
+  project:
+    name: aikos-home.intercom-talk
+    version: "0.7.20"
+  includes:
+    - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
+  on_boot:
+    - priority: -100
+      then:
+        - lambda: |-
+            id(spk).set_volume(speech_volume(id(volume).state));   // restored from the last setting
+            id(voice).set_mic_gain(id(mic_gain).state);
+            id(voice).set_transcriber(id(transcriber).state);
+            id(voice).set_call_silence_end((uint32_t) (id(silence_end).state * 1000));
+            id(voice).set_call_max_length((uint32_t) (id(max_length).state * 1000));
+            id(apply_keys).execute(id(key_addresses).state);
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  cpu_frequency: 240MHz
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+# psram: off in 0.7.5: the replacement HW678 (MAC ..AF:98) panics in the PSRAM self-test (80 and 40 MHz, two cables,
+# 2026-10-03). Was: mode octal, speed 80MHz. The talk computer fits in internal RAM.
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG   # the board's "USB" port (native USB)
+
+external_components:   # the shared voice link, pinned to its frozen tag (never a branch)
+  - source:
+      type: git
+      url: https://github.com/aikos-home/aikos
+      ref: voice-v2.1.0   # = 0371c17, smoke-tested on 0.7.4 before the tag (2026-10-02)
+      path: esphome/components
+    components: [aikos_voice]
+  - source:
+      type: local
+      path: ../components
+    components: [aikos_wifi, aikos_peer_guard]
+
+# Wi-Fi credentials are in no file: set once in the browser (web.esphome.io, "Connect", then Improv asks for the
+# Wi-Fi), as decided for all aikos devices. Fallback: its own network with the password from secrets.yaml.
+# No `networks:` here: that would make ESPHome forget the Improv-entered house Wi-Fi (aikos_wifi below adds "aikos").
+wifi:
+  # no network for 5 min -> reboot (ESPHome default 15 min). Connected-but-dead is caught by aikos_wifi's gateway guard.
+  reboot_timeout: 5min
+  ap:
+    ssid: aikos-intercom-talk
+    password: !secret talk_ap_password
+
+# aikos H4 (03.10.): talk computer and bell bring each other back by wire (aikos_peer_guard).
+aikos_peer_guard:
+  heartbeat_out: GPIO18          # -> bell GPIO38 (header pin 14)
+  peers:
+    - name: bell
+      heartbeat_in: GPIO8        # <- bell GPIO39 (header pin 12)
+      reset_out: GPIO9           # -> bell CHIP_UP (header pin 30), open-drain, pulls low 200 ms
+      resets:
+        name: Bell resets by the talk computer
+        entity_category: diagnostic
+
+# the bell's Wi-Fi "aikos" first, the house Wi-Fi as fallback, back to "aikos" by itself (bausteine/tuerstation.md H3)
+aikos_wifi:
+  id: aikos_net
+  password: !secret aikos_wifi_password
+  bell: !secret bell_host
+
+improv_serial:
+
+captive_portal:
+
+json:   # parses aikos_people's keys_json below
+
+api:
+  encryption:
+    key: !secret talk_api_key
+  # Don't reboot when Home Assistant is away (as the bell): a restart cannot bring HA back. ESPHome's default (15 min)
+  # rebooted the talk computer every 15 min while HA looked for it at an old address (seen 2026-10-03 night).
+  reboot_timeout: 0s
+  actions:   # called by HA (tests now, later the aikos integration)
+    - action: test_reboot_unconfirmed   # TEST ONLY (H4 stage 4): restart without shutdown hooks (boot counter kept)
+      then:
+        - lambda: App.reboot();
+    - action: wifi_test_leave_aikos   # bench test: to the house Wi-Fi now; must come back to "aikos" by itself
+      then:
+        - lambda: id(aikos_net)->test_leave_aikos();
+    - action: ring             # the bell rang (HA forwards it; the direct path comes with pairing)
+      then:
+        - aikos_voice.ring
+    - action: visitor_speak    # stands in for the screen's "Sprechen" while testing
+      then:
+        - aikos_voice.visitor_speak
+    - action: key_state        # stands in for a key's own messages while testing (0 idle, 1 in the call, 2 holding)
+      variables:
+        host: string
+        state: int
+      then:
+        - aikos_voice.key_in_call:
+            host: !lambda return host;
+            in_call: !lambda return state >= 1;
+        - aikos_voice.key_hold:
+            host: !lambda return host;
+            held: !lambda return state >= 2;
+    - action: call_end
+      then:
+        - aikos_voice.end
+
+# aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
+# confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own
+# guards, which would defeat the bootloader's rollback to the previous firmware.
+safe_mode:
+  boot_is_good_on_shutdown: false
+  # H4 stage 2: our health check confirms the firmware after 2 min healthy; this is only the upper bound
+  boot_is_good_after: 60min
+  num_attempts: 5   # H4 stage 4: 5 failed boots in a row -> safe mode
+
+ota:
+  - platform: esphome
+    password: !secret talk_ota_password
+
+i2s_audio:
+  - id: i2s_mic
+    i2s_bclk_pin: GPIO1    # mic SCK; on GPIO1/GPIO2 since the box wiring of 2026-10-03 (the sheet had 4/5)
+    i2s_lrclk_pin: GPIO2   # mic WS
+  - id: i2s_spk
+    i2s_bclk_pin: GPIO15
+    i2s_lrclk_pin: GPIO16
+
+microphone:
+  - platform: i2s_audio
+    id: mic
+    i2s_audio_id: i2s_mic
+    adc_type: external
+    i2s_din_pin: GPIO6
+    pdm: false
+    channel: left          # L/R on GND
+    sample_rate: 16000
+    bits_per_sample: 32bit # the INMP441 sends 24 bits in 32-bit slots
+    correct_dc_offset: true
+
+speaker:
+  - platform: i2s_audio
+    id: spk
+    i2s_audio_id: i2s_spk
+    dac_type: external
+    i2s_dout_pin: GPIO17
+    channel: mono
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    buffer_duration: 1000ms
+
+# The shared voice link (voice v2). Everything above and below is this device's glue.
+aikos_voice:
+  id: voice
+  role: door
+  microphone: mic
+  speaker: spk
+  # both triggers are counted in HA so the live test sees them fire
+  on_call_start:
+    - sensor.template.publish:
+        id: calls_started
+        state: !lambda 'return std::isnan(id(calls_started).state) ? 1 : id(calls_started).state + 1;'
+  on_call_end:
+    - sensor.template.publish:
+        id: calls_ended
+        state: !lambda 'return std::isnan(id(calls_ended).state) ? 1 : id(calls_ended).state + 1;'
+
+globals:
+  - id: key_hosts            # key node name → its address, from "Key addresses"
+    type: std::map<std::string, std::string>
+
+script:
+  - id: apply_keys           # "node=ip,node=ip" → the map and the list of addresses the door talks to
+    mode: queued
+    parameters:
+      list: string
+    then:
+      - lambda: |-
+          id(key_hosts).clear();
+          std::string ips;
+          size_t pos = 0;
+          while (pos < list.size()) {
+            size_t comma = list.find(',', pos);
+            if (comma == std::string::npos)
+              comma = list.size();
+            const std::string item = list.substr(pos, comma - pos);
+            const size_t eq = item.find('=');
+            if (eq != std::string::npos && eq + 1 < item.size()) {
+              id(key_hosts)[item.substr(0, eq)] = item.substr(eq + 1);
+              ips += (ips.empty() ? "" : ",") + item.substr(eq + 1);
+            }
+            pos = comma + 1;
+          }
+          id(voice).set_keys(ips);
+  - id: key_message          # one packet from a key: refreshes its hold, its membership
+    mode: queued
+    max_runs: 16
+    parameters:
+      node: string
+      state: float
+    then:
+      - lambda: |-
+          if (std::isnan(state))
+            return;   // the key went quiet: no refresh, the door lets go of its hold after 3 s
+          auto it = id(key_hosts).find(node);
+          if (it == id(key_hosts).end()) {
+            ESP_LOGW("talk", "a message from %s, but its address is unknown (Key addresses)", node.c_str());
+            return;
+          }
+          static std::map<std::string, int> last;   // log each key's state when it changes (internal sensors log nothing)
+          const int st = (int) state;
+          auto seen = last.find(node);
+          if (seen == last.end() || seen->second != st) {
+            ESP_LOGI("talk", "key %s (%s): state %d", node.c_str(), it->second.c_str(), st);
+            last[node] = st;
+          }
+          id(voice).key_in_call(it->second, state >= 1);
+          id(voice).key_hold(it->second, state >= 2);
+  - id: chime                # on demand only ("Test chime" button): the intercom itself never chimes (owner 2026-10-04)
+    mode: single
+    then:
+      # The gong plays at full level (owner 04.10.: gong only); speech keeps the capped "Speaker volume". Not during a
+      # conversation: then the gong just plays at the speech volume.
+      - lambda: |-
+          if (!id(voice).in_call()) id(spk).set_volume(1.0f);
+          id(spk).start();   // the speaker makes its buffer on start; data sent before that is dropped
+      - wait_until:
+          condition:
+            lambda: return id(spk).is_running();
+          timeout: 2s
+      - lambda: |-
+          // two tones, 16 kHz 16-bit mono, 25 ms fade in and out so nothing clicks; near full scale (-1 dBFS): at 8000
+          // (-12 dB) the gong was "unusably quiet" on the bench (owner 04.10.), the "Speaker volume" number scales it down
+          static std::vector<uint8_t> pcm;
+          if (pcm.empty()) {
+            const int rate = 16000;
+            auto tone = [&](float hz, float seconds) {
+              const int n = (int) (rate * seconds);
+              for (int i = 0; i < n; i++) {
+                const float fade = std::min(1.0f, std::min(i, n - i) / 400.0f);
+                const int16_t s = (int16_t) (29000.0f * fade * sinf(2.0f * (float) M_PI * hz * i / rate));
+                pcm.push_back((uint8_t) (s & 0xFF));
+                pcm.push_back((uint8_t) ((s >> 8) & 0xFF));
+              }
+            };
+            tone(880.0f, 0.35f);
+            tone(660.0f, 0.55f);
+          }
+          const size_t sent = id(spk).play(pcm.data(), pcm.size(), pdMS_TO_TICKS(200));
+          ESP_LOGI("talk", "chime: %u of %u bytes to the speaker", (unsigned) sent, (unsigned) pcm.size());
+      # the volume is applied when audio leaves the speaker's buffer: once it is empty, every gong sample got full level
+      - wait_until:
+          condition:
+            lambda: return !id(spk).has_buffered_data() || id(voice).in_call();
+          timeout: 3s
+      - lambda: id(spk).set_volume(speech_volume(id(volume).state));
+
+# Direct links, encrypted, without HA: the screen's "Sprechen" in, the keys' states in, the door's call out.
+# No addresses: the door's own messages go out as broadcast (encrypted), so a new key needs no reflash here.
+udp:
+
+packet_transport:
+  - platform: udp
+    update_interval: 1s
+    encryption:
+      key: !secret key_link_key      # what the door sends: only paired keys can read it
+    rolling_code_enable: true
+    binary_sensors:
+      - door_answered
+    sensors:
+      - door_call_id
+      - floor_key
+    providers:
+      - name: aikos-intercom-screen
+        encryption:
+          key: !secret door_link_key
+      - name: aikos-roomkey-desk
+        encryption:
+          key: !secret key_link_key
+      - name: roomkey-sim
+        encryption:
+          key: !secret key_link_key
+      - name: aikos-roomkey-touch    # the RoomKey Touch, replaces the desk key at the bench (RoomKey 04.10.)
+        encryption:
+          key: !secret key_link_key
+
+
+binary_sensor:
+  - platform: packet_transport
+    provider: aikos-intercom-screen
+    remote_id: ptt_held                 # the screen's talk button; in v2 its press is the visitor's "Sprechen"
+    id: screen_ptt
+    name: Screen talk button (direct)   # shows in HA whether the door link works
+    internal: false
+    on_press:
+      - aikos_voice.visitor_speak
+  - platform: aikos_voice
+    in_call:
+      name: In call
+    talking:
+      name: Door mic sending
+    remote_holding:
+      name: Room key holds
+    answered:
+      id: door_answered
+      name: Answered
+    speech:
+      name: Speech at the door mic   # diagnostics (0.7.1): what the call's speech detector hears
+      entity_category: diagnostic
+
+text:
+  - platform: template
+    id: transcriber
+    name: Transcriber address    # host:port for the copy of the visitor's words; empty = none
+    mode: text
+    max_length: 40
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - aikos_voice.set_transcriber: !lambda return x;
+  - platform: template
+    id: key_addresses
+    name: Key addresses          # "node=ip,node=ip"; set by aikos from sensor.aikos_people, kept in flash
+    mode: text
+    max_length: 255
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - script.execute:
+          id: apply_keys
+          list: !lambda return x;
+
+interval:
+  - interval: 500ms               # the keys in the call, for the door screen's "Max und Erika hören zu"
+    then:
+      - lambda: |-
+          const std::string m = id(voice).member_octets();
+          if (!id(member_keys).has_state() || id(member_keys).state != m)
+            id(member_keys).publish_state(m);
+
+text_sensor:
+  - platform: template
+    id: member_keys
+    name: Call member keys        # last octets of the keys in the call, "144,110"
+    icon: mdi:account-multiple
+    entity_category: diagnostic
+    update_interval: never
+  - platform: homeassistant      # aikos: every key with name, room and address (JSON), → "Key addresses"
+    id: aikos_people
+    entity_id: sensor.aikos_people
+    attribute: keys_json
+    internal: true
+    on_value:
+      - lambda: |-
+          if (x.empty() || x == "unknown" || x == "unavailable")
+            return;
+          std::string list;
+          json::parse_json(x, [&](JsonObject root) -> bool {
+            for (JsonPair kv : root) {
+              const char *host = kv.value()["host"] | "";
+              if (host[0] != '\0')
+                list += (list.empty() ? "" : ",") + std::string(kv.key().c_str()) + "=" + host;
+            }
+            return true;
+          });
+          if (!list.empty() && list != id(key_addresses).state) {
+            auto call = id(key_addresses).make_call();
+            call.set_value(list);
+            call.perform();
+          }
+
+button:
+  - platform: template
+    name: Test chime
+    icon: mdi:bell-ring-outline
+    entity_category: diagnostic
+    on_press:
+      - script.execute: chime
+  - platform: restart
+    name: Restart
+    entity_category: diagnostic
+
+number:
+  - platform: template
+    id: mic_gain
+    name: Mic gain
+    icon: mdi:microphone-plus
+    min_value: 1
+    max_value: 16
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 4
+    entity_category: config
+    set_action:
+      - aikos_voice.set_mic_gain: !lambda return x;
+  - platform: template
+    id: volume
+    name: Speaker volume
+    icon: mdi:volume-high
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    optimistic: true
+    restore_value: true
+    initial_value: 80
+    entity_category: config
+    set_action:
+      - lambda: if (!id(chime).is_running()) id(spk).set_volume(speech_volume(x));   // the chime restores it when done
+  - platform: template           # R17.8: no speech this long ends the call (aikos §4b)
+    id: silence_end
+    name: Call silence end
+    icon: mdi:timer-sand
+    min_value: 3
+    max_value: 60
+    step: 1
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 10
+    entity_category: config
+    set_action:
+      - lambda: id(voice).set_call_silence_end((uint32_t) (x * 1000));
+  - platform: template           # safety: a call never lasts longer
+    id: max_length
+    name: Call max length
+    icon: mdi:timer-lock-outline
+    min_value: 30
+    max_value: 1800
+    step: 10
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 300
+    entity_category: config
+    set_action:
+      - lambda: id(voice).set_call_max_length((uint32_t) (x * 1000));
+
+sensor:
+  - platform: packet_transport   # each key's state, one per packet (refreshes its hold)
+    provider: aikos-roomkey-desk
+    remote_id: key_state
+    id: desk_state
+    internal: true
+    on_raw_value:
+      - script.execute:
+          id: key_message
+          node: aikos-roomkey-desk
+          state: !lambda return x;
+  - platform: packet_transport
+    provider: roomkey-sim
+    remote_id: key_state
+    id: sim_state
+    internal: true
+    on_raw_value:
+      - script.execute:
+          id: key_message
+          node: roomkey-sim
+          state: !lambda return x;
+  - platform: packet_transport
+    provider: aikos-roomkey-touch
+    remote_id: key_state
+    id: touch_state
+    internal: true
+    on_raw_value:
+      - script.execute:
+          id: key_message
+          node: aikos-roomkey-touch
+          state: !lambda return x;
+  - platform: template           # counted by the aikos_voice triggers above (since boot)
+    id: calls_started
+    name: Calls started
+    icon: mdi:phone-plus
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: calls_ended
+    name: Calls ended
+    icon: mdi:phone-hangup
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+  - platform: sound_level
+    microphone: mic
+    passive: true           # v2: only measures while the call has the mic open (R17.2: closed outside a call)
+    measurement_duration: 1000ms
+    rms:
+      id: mic_rms
+      name: Mic level
+      entity_category: diagnostic
+    peak:
+      id: mic_peak
+      name: Mic peak
+      entity_category: diagnostic
+  - platform: aikos_voice
+    tx_packets:
+      name: RTP packets sent
+    rx_packets:
+      name: RTP packets received
+    held_back:
+      name: RTP packets held back   # from a key that did not have the floor: never played
+    tx_errors:
+      name: RTP errors
+    call_id:
+      id: door_call_id
+      name: Call id
+    floor_key:
+      id: floor_key
+      name: Floor key
+    members:
+      name: Call members
+    speech_floor:
+      name: Speech floor             # diagnostics (0.7.1): the noise floor the detector compares with
+    speech_level:
+      name: Speech level             # diagnostics (0.7.1): the loudest mic block of the last second
+  - platform: wifi_signal
+    name: Wi-Fi signal
+    update_interval: 60s
+    entity_category: diagnostic

@@ -1,16 +1,45 @@
-# Screen computer firmware
+# Firmware: the three computers in the door box
+
+All three run ESPHome (tested with 2026.9.0). How they are wired: [`WIRING.md`](WIRING.md).
+
+| Computer | Folder / file | Board |
+|---|---|---|
+| Bell | [`bell/`](bell/) | Waveshare ESP32-S3-ETH + PoE module: the only wired one, runs the Wi-Fi "aikos" for the other two |
+| Talk computer | [`talk_computer/`](talk_computer/) | ESP32-S3-N16R8 dev board (HW678) with microphone and amplifier |
+| Screen | `aikos-intercom-screen.yaml` and the folders below (this page) | LilyGO T5-4.7-S3 Touch |
+
+Shared local components in [`components/`](components/):
+
+| Component | What it does |
+|---|---|
+| `eth_wifi_bridge` | bell: Ethernet + access point "aikos" as one layer-2 bridge into the LAN, TCP guard, health-gated "firmware good" |
+| `aikos_wifi` | screen and talk computer: prefer "aikos", house Wi-Fi as fallback, gateway guard, health-gated "firmware good" |
+| `aikos_firmware` | bell: start the SAFE firmware in the factory partition after a boot loop, and back |
+| `aikos_peer_guard` | bell ↔ talk computer: heartbeat wires, reset the other one if it hangs |
+| `lilygo_t5_47_plus` | screen: display, touch and battery driver with the fast refresh (GPLv3, see below) |
+
+The voice link `aikos_voice` is not in this repo: the talk computer pulls it from
+[aikos-home/aikos](https://github.com/aikos-home/aikos) at a fixed tag.
+
+Each folder with a firmware has a `secrets.example.yaml`: copy it to `secrets.yaml` (never commit it) and fill in
+your own values.
+
+## Screen computer
 
 ESPHome firmware for the screen at the door: a LilyGO T5-4.7-S3 Touch (board V2.4) with a 4.7" e-paper
 panel (ED047TC1, 960 × 540, 16 grey levels) and a GT911 touch chip. Bench-tested on 29 September 2026.
 
 | File | What |
 |---|---|
+| `aikos-intercom-screen.yaml` | **what runs at the door:** ring page with "Sprechen", call page, transcripts, setup page, Wi-Fi "aikos" with house Wi-Fi fallback |
+| `ring/ring_path.h` | every press heard twice (directly from the bell and via Home Assistant), counted once; a new bell boot id waits for its own press number |
+| `call/call_page.h`, `talk/talk_page.h`, `ui/door_ui.h`, `setup/setup_page.h` | the page logic and drawing (unit test: `tests/call_page_test.cpp`) |
 | `screen-test.yaml` | bench test page: orientation arrow, five touch targets, border lines |
 | `screen-demo.yaml` | what the screen can do, 8 pages: drawing, photos, vector graphic and icons, QR codes, text sizes, grey levels, animation; bottom bar = page changes |
 | `demo/demo.h`, `make_demo_assets.py`, `demo-assets/` | helpers and test pictures for the demo (`local-assets/` is generated from local sample photos and not published) |
 | `components/lilygo_t5_47_plus/` | the display, touch and battery driver (**GPLv3**, see below), with the fast refresh |
 
-## Build and flash
+### Build and flash
 
 Needs ESPHome 2026.3 or newer (tested with 2026.9.0).
 
@@ -28,7 +57,7 @@ esptool --port COMx --after watchdog-reset write-flash 0x0 .esphome/build/klinge
 - **Glass print:** the white print of the touch glass hides the outer 7–9 px of the panel on every edge.
   Keep content at least 10 px from the edge.
 
-## How the screen updates without flashing
+### How the screen updates without flashing
 
 The upstream driver wipes the whole panel black and white before every picture (2 s, a full flash). That
 looks like a defect to anyone at the door. The driver here keeps the flash for rare clean-ups and updates
@@ -78,7 +107,7 @@ flash and no visible shadow.
 The panel stands on its side: its rows run across the portrait page. A line of text across the page
 therefore touches about 300 of the 540 panel rows, and more rows mean a slower update.
 
-## Licence of the driver
+### Licence of the driver
 
 `components/lilygo_t5_47_plus/` is a modified copy of
 [hbast/lilygo_t5_47_plus](https://github.com/hbast/lilygo_t5_47_plus) v1.0.0, which derives from

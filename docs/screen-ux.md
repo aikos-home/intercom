@@ -2,9 +2,9 @@
 
 The screen at the door is a 4.7" e-paper panel (ED047TC1, 540 × 960 portrait, 0.108 mm per pixel, 16 grey
 levels) behind a touch glass, on a LilyGO T5-4.7-S3 board. These findings come from a demo program with
-eight test pages ([`firmware/screen/screen-demo.yaml`](../firmware/screen/screen-demo.yaml)), judged on
+eight test pages ([`firmware/screen-demo.yaml`](../firmware/screen-demo.yaml)), judged on
 the real panel at arm's length. They set the rules for the door pages; how the screen updates is in
-[`firmware/screen/README.md`](../firmware/screen/README.md).
+[`firmware/README.md`](../firmware/README.md#screen-computer).
 
 | Topic | What we saw | Rule |
 |---|---|---|

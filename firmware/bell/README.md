@@ -1,25 +1,58 @@
 # Doorbell computer firmware
 
-Stock ESPHome (tested with 2026.9.0, ESP-IDF). The doorbell computer does one job: read the brass button
-over a supervised line and report every press to Home Assistant, at once. Nothing else runs on it, so
-a crash or an update elsewhere can never silence the bell.
+Stock ESPHome (tested with 2026.9.0, ESP-IDF) plus four small local components in [`../components/`](../components/).
+The doorbell computer reads the brass button over a supervised line and reports every press to Home Assistant and,
+directly, to the room keys and the door screen. It is the only wired computer in the door box: it also runs the
+Wi-Fi "aikos" for the screen and the talk computer and bridges it into the LAN. Wiring of the whole box:
+[`../WIRING.md`](../WIRING.md); header pins: [`PINOUT.md`](PINOUT.md).
 
 | File | What it is |
 |---|---|
 | [`bell-core.yaml`](bell-core.yaml) | The bell logic, the same on every board: line sampling, press detection, line supervision, diagnostics |
-| [`s3poeeth-intercom-bell.yaml`](s3poeeth-intercom-bell.yaml) | **The doorbell computer:** Waveshare ESP32-S3-ETH (W5500 Ethernet, PoE via its plug-on module) |
+| [`aikos-intercom-bell.yaml`](aikos-intercom-bell.yaml) | The board file: Waveshare ESP32-S3-ETH (W5500 Ethernet, PoE via its plug-on module), direct ring targets, self-healing, supervision wires to the talk computer |
+| [`aikos-intercom-bell-aptest.yaml`](aikos-intercom-bell-aptest.yaml) | + an access point (bench step, kept as the base of the next file) |
+| [`aikos-intercom-bell-bridge.yaml`](aikos-intercom-bell-bridge.yaml) | **What runs at the door:** + Wi-Fi "aikos" bridged into the LAN (`eth_wifi_bridge`) |
+| [`aikos-intercom-bell-bridge-diag.yaml`](aikos-intercom-bell-bridge-diag.yaml) | The same with a core dump on crash and test actions, for the bench |
+| [`aikos-intercom-bell-safe.yaml`](aikos-intercom-bell-safe.yaml) | The SAFE firmware in the factory partition (see below) |
+| [`partitions-bell.csv`](partitions-bell.csv) | Flash layout: factory 3 MB (safe firmware) + two 6 MB OTA slots |
+| [`net_watchdog.h`](net_watchdog.h) | Restart if the link is up but nothing can be sent |
 | [`wt32eth-intercom-bell.yaml`](wt32eth-intercom-bell.yaml) | The first try on a WT32-ETH01, kept for the record: see *Why not the WT32-ETH01* below |
 | [`secrets.example.yaml`](secrets.example.yaml) | Copy to `secrets.yaml` (never commit it) and fill in your own keys |
 
-Build and flash once over USB-C, after that over the network:
+First flash over USB-C (the safe firmware's factory image, then the normal firmware over the network):
 
 ```bash
-esphome run s3poeeth-intercom-bell.yaml
+esphome compile aikos-intercom-bell-safe.yaml      # write its firmware.factory.bin at 0x0 over USB
+esphome run aikos-intercom-bell-bridge.yaml        # then OTA, into the app slots; the factory partition stays
 ```
+
+## It heals itself
+
+A box in the wall must never need hands. What the bell does about it:
+
+- **A firmware counts as good only after 2 minutes healthy** (bridge up, a TCP connection to the gateway works).
+  Until then the bootloader can roll back to the previous image.
+- **5 failed boots in a row** start the **safe firmware** from the factory partition: the plain bell (Ethernet only,
+  no bridge, no access point). It still rings to Home Assistant and the screen and accepts updates. It tries the
+  normal firmware again after 60 minutes, or on its "Start normal firmware" button.
+- **Runtime guards** restart the bell when the network is stuck: a TCP guard in the bridge firmware (3 failed
+  connections to the gateway in a row while the link is up), the network watchdog in the safe firmware. They use a
+  plain restart, and `safe_mode: boot_is_good_on_shutdown` is false: ESPHome's default would mark the running image
+  good on every orderly restart, which defeats the rollback.
+- **The bell and the talk computer watch each other by wire** (`aikos_peer_guard`): a 1 Hz heartbeat each way; if
+  one stops for 30 s, the other pulls its reset line (at most 3 times an hour, never before it has seen a heartbeat).
+- In Home Assistant, an automation can power-cycle the switch port when the bell stays unreachable (not in this repo).
+
+## Wi-Fi "aikos"
+
+`eth_wifi_bridge` puts the Ethernet port and the bell's access point into one layer-2 bridge, so the screen and the
+talk computer get their addresses from the house DHCP like any LAN device. Two settings were needed against a stall
+seen on the bench (the network task blocked the main loop until the task watchdog fired): a forwarding table of
+128 entries (16 overflowed and flooded every frame) and the W5500 with all-multicast off.
 
 ## Direct ring path
 
-Every press goes to Home Assistant **and**, at the same time, straight to the room keys over encrypted UDP (ESPHome
+Every press goes to Home Assistant **and**, at the same time, straight to the room keys and the door screen over encrypted UDP (ESPHome
 `packet_transport`, port 18511, unicast to each key's address, rolling code against replays), so the gong still
 sounds while Home Assistant restarts. Each packet carries `boot_id` (24-bit random per boot; `packet_transport`
 sends values as 32-bit floats, so larger integers would arrive rounded), `presses` (press number since boot) and

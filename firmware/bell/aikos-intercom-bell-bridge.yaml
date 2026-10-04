@@ -1,0 +1,42 @@
+# aikos Wi-Fi (aikos bausteine/tuerstation.md H3, the owner 2026-10-03): the bell's Ethernet and its access point as ONE
+# network (layer-2 bridge, firmware/components/eth_wifi_bridge). Devices on the access point get their address from the
+# house DHCP like any LAN device.
+# Own network "aikos" with its own password (the owner ~02:00, replaces "same name as the house Wi-Fi"): only the door screen
+# and the talk computer know it, so phones never join by themselves, and the bell never holds the house password.
+# Built on the AP test (0.3.2-aptest, Ethernet + access point, network watchdog off).
+packages:
+  base: !include aikos-intercom-bell-aptest.yaml
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [eth_wifi_bridge]
+
+esphome:
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.3.20-bridge"
+
+wifi:
+  # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
+  output_power: 8.5dB
+  ap:
+    ssid: aikos
+    password: !secret aikos_wifi_password
+
+eth_wifi_bridge:
+
+# Bench diagnosis (2026-10-03 night): the bridged bell refused new TCP connections (API, OTA) some minutes after boot and
+# rebooted by task watchdog twice (02:14, 02:33, both right after failed connections). Watch the internal heap in HA.
+debug:
+  update_interval: 30s
+
+sensor:
+  - platform: debug
+    free:
+      name: Heap free
+    block:
+      name: Heap largest block
+    min_free:
+      name: Heap minimum free

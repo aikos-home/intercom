@@ -4,6 +4,9 @@
 # Contract: the HA binary sensor with object id doorbell_button (rename the ESPHome entity once in the
 # HA entity registry).
 
+substitutions:
+  net_watchdog_on: "true"   # default; a board or test file may switch it off
+
 globals:
   - id: line_samples
     type: uint32_t
@@ -23,6 +26,8 @@ globals:
 # a loose pin to 3.3 V instead. The ADC driver resets the pad, so switch it on after setup.
 # Shifts the levels a little (idle ~1.9 V, pressed ~0.36 V); the thresholds keep wide margins.
 esphome:
+  includes:
+    - net_watchdog.h
   on_boot:
     priority: -100
     then:
@@ -42,6 +47,17 @@ interval:
       - lambda: |-
           id(line_rate).publish_state(id(line_samples) / 10.0f);
           id(line_samples) = 0;
+  # Network watchdog (2026-10-01): the link once stayed "up" while nothing could be sent, until a manual reset.
+  # A doorbell must come back by itself: 30 s of failed sends with the link up = restart (~2 s). See net_watchdog.h.
+  - interval: 5s
+    then:
+      - lambda: |-
+          if (!${net_watchdog_on})
+            return;  // off in the aikos Wi-Fi bench test (aikos-intercom-bell-aptest.yaml)
+          if (net_watchdog::check(network::is_connected())) {
+            ESP_LOGE("netdog", "network dead for 30 s with the link up: restarting");
+            App.reboot();  // NOT safe_reboot(): that marks the running image good and clears the boot counter (H4)
+          }
 
 # ── The line, sampled every millisecond. Each sample drives the button directly (no polling in
 #    between), so a press is seen within ~1 ms, and even a very brief contact is caught.
@@ -186,6 +202,15 @@ text_sensor:
     ip_address:
       name: IP address
       entity_category: diagnostic
+
+# aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
+# confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own
+# guards, which would defeat the bootloader's rollback to the previous firmware.
+safe_mode:
+  boot_is_good_on_shutdown: false
+  # H4 stage 2: our health check confirms the firmware after 2 min healthy; this is only the upper bound
+  boot_is_good_after: 60min
+  num_attempts: 5   # H4 stage 4: 5 failed boots in a row -> safe mode
 
 button:
   - platform: restart

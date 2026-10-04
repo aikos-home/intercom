@@ -97,6 +97,16 @@ static void provide_out(OutputParams *params);
 
 static void feed_display(OutputParams *params);
 
+// Klingelbox: the two frame workers live as long as the device. epdiy created and deleted them for every frame (2 x 8 KB
+// stacks, 15 frames per picture); once the internal heap was fragmented (long chat texts, door screen 2026-10-02 09:5x)
+// the creation failed and every full picture came out blank: "clear=330ms draw=10ms", the panel white after the flash.
+static OutputParams worker_out_params, worker_feed_params;
+static SemaphoreHandle_t worker_out_go = NULL, worker_feed_go = NULL;
+static TaskHandle_t worker_out = NULL, worker_feed = NULL;
+static void worker_out_loop(void *arg);
+static void worker_feed_loop(void *arg);
+static bool workers_start(void);
+
 static void epd_fill_circle_helper(int32_t x0, int32_t y0, int32_t r, int32_t corners, int32_t delta, uint8_t color,
                                    uint8_t *framebuffer);
 
@@ -156,6 +166,39 @@ void epd_init() {
   assert(conversion_lut != NULL);
   output_queue = xQueueCreate(64, EPD_WIDTH / 2);
   assert(output_queue != NULL);
+  workers_start();  // at boot, while the heap is whole
+}
+
+static bool workers_start(void) {
+  if (worker_out != NULL && worker_feed != NULL)
+    return true;
+  if (worker_out_go == NULL)
+    worker_out_go = xSemaphoreCreateBinary();
+  if (worker_feed_go == NULL)
+    worker_feed_go = xSemaphoreCreateBinary();
+  if (worker_out_go == NULL || worker_feed_go == NULL)
+    return false;
+  if (worker_out == NULL &&
+      xTaskCreatePinnedToCore(worker_out_loop, "provide_out", 8192, NULL, 2, &worker_out, 0) != pdPASS)
+    worker_out = NULL;
+  if (worker_feed == NULL &&
+      xTaskCreatePinnedToCore(worker_feed_loop, "render", 8192, NULL, 2, &worker_feed, 1) != pdPASS)
+    worker_feed = NULL;
+  return worker_out != NULL && worker_feed != NULL;
+}
+
+static void worker_out_loop(void *arg) {
+  for (;;) {
+    xSemaphoreTake(worker_out_go, portMAX_DELAY);
+    provide_out(&worker_out_params);
+  }
+}
+
+static void worker_feed_loop(void *arg) {
+  for (;;) {
+    xSemaphoreTake(worker_feed_go, portMAX_DELAY);
+    feed_display(&worker_feed_params);
+  }
 }
 
 void epd_push_pixels(Rect_t area, int16_t time, int32_t color) {
@@ -601,7 +644,7 @@ void epd_copy_to_framebuffer(Rect_t image_area, uint8_t *image_data, uint8_t *fr
   }
 }
 
-void IRAM_ATTR epd_draw_grayscale_image(Rect_t area, uint8_t *data) { epd_draw_image(area, data, BLACK_ON_WHITE); }
+bool IRAM_ATTR epd_draw_grayscale_image(Rect_t area, uint8_t *data) { return epd_draw_image(area, data, BLACK_ON_WHITE); }
 
 void IRAM_ATTR epd_draw_frame_1bit(Rect_t area, uint8_t *ptr, DrawMode_t mode, int32_t time) {
   epd_start_frame();
@@ -670,62 +713,50 @@ void IRAM_ATTR epd_draw_frame_1bit(Rect_t area, uint8_t *ptr, DrawMode_t mode, i
   epd_end_frame();
 }
 
-void IRAM_ATTR epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode) {
+bool IRAM_ATTR epd_draw_image(Rect_t area, uint8_t *data, DrawMode_t mode) {
   uint8_t frame_count = 15;
+  static SemaphoreHandle_t fetch_sem = NULL, feed_sem = NULL;  // made once, like the workers
 
-  SemaphoreHandle_t fetch_sem = xSemaphoreCreateBinary();
-  SemaphoreHandle_t feed_sem = xSemaphoreCreateBinary();
-  if (fetch_sem == NULL || feed_sem == NULL) {
-    ESP_LOGE("epd_driver", "Failed to create EPD semaphores (out of memory)");
-    vSemaphoreDelete(fetch_sem);
-    vSemaphoreDelete(feed_sem);
-    return;
+  if (fetch_sem == NULL)
+    fetch_sem = xSemaphoreCreateBinary();
+  if (feed_sem == NULL)
+    feed_sem = xSemaphoreCreateBinary();
+  if (fetch_sem == NULL || feed_sem == NULL || !workers_start()) {
+    ESP_LOGE("epd_driver", "EPD draw workers missing (out of memory)");
+    return false;
   }
   vTaskDelay(10);
   const bool measure = area.x == 0 && area.y == 0 && area.width == EPD_WIDTH && area.height == EPD_HEIGHT &&
                        mode == BLACK_ON_WHITE;
   int64_t t_frame = esp_timer_get_time();
   for (uint8_t k = 0; k < frame_count; k++) {
-    OutputParams p1 = {
+    worker_out_params = (OutputParams){
         .area = area,
         .data_ptr = data,
         .frame = k,
         .mode = mode,
         .done_smphr = fetch_sem,
     };
-    OutputParams p2 = {
+    worker_feed_params = (OutputParams){
         .area = area,
         .data_ptr = data,
         .frame = k,
         .mode = mode,
         .done_smphr = feed_sem,
     };
-
-    TaskHandle_t t1, t2;
-    BaseType_t rc1 = xTaskCreatePinnedToCore((void (*)(void *)) provide_out, "provide_out", 8192, &p1, 2, &t1, 0);
-    BaseType_t rc2 = xTaskCreatePinnedToCore((void (*)(void *)) feed_display, "render", 8192, &p2, 2, &t2, 1);
-    if (rc1 != pdPASS || rc2 != pdPASS) {
-      ESP_LOGE("epd_driver", "Failed to create EPD render tasks (out of memory)");
-      if (rc1 == pdPASS)
-        vTaskDelete(t1);
-      if (rc2 == pdPASS)
-        vTaskDelete(t2);
-      break;
-    }
+    xSemaphoreGive(worker_out_go);
+    xSemaphoreGive(worker_feed_go);
 
     xSemaphoreTake(fetch_sem, portMAX_DELAY);
     xSemaphoreTake(feed_sem, portMAX_DELAY);
 
-    vTaskDelete(t1);
-    vTaskDelete(t2);
-    vTaskDelay(5);
+    vTaskDelay(5);  // as before (the frame time is measured with it and sets the partial drive time)
     const int64_t now = esp_timer_get_time();
     if (measure)
       full_frame_us[k] = now - t_frame;
     t_frame = now;
   }
-  vSemaphoreDelete(fetch_sem);
-  vSemaphoreDelete(feed_sem);
+  return true;
 }
 
 /* Klingelbox: per-pixel transition plan, one sweep (see epd_driver.h) */
@@ -978,7 +1009,6 @@ static void IRAM_ATTR provide_out(OutputParams *params) {
   }
 
   xSemaphoreGive(params->done_smphr);
-  vTaskDelay(portMAX_DELAY);
 }
 
 static void IRAM_ATTR feed_display(OutputParams *params) {
@@ -1012,7 +1042,6 @@ static void IRAM_ATTR feed_display(OutputParams *params) {
   epd_end_frame();
 
   xSemaphoreGive(params->done_smphr);
-  vTaskDelay(portMAX_DELAY);
 }
 
 /******************************************************************************/

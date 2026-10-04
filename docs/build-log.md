@@ -67,7 +67,7 @@ What happened, in order, including the dead ends. Dates are 2026.
 
 - The screen runs ESPHome. The community driver wiped the whole panel black and white before every
   picture: two seconds of flashing, which at a door looks like a fault. The driver in
-  [`firmware/screen/`](../firmware/screen/) now moves each pixel only by the difference between its
+  [`firmware/`](../firmware/README.md#screen-computer) now moves each pixel only by the difference between its
   old and new grey, all changed rows in one sweep, in a background task so touch is never ignored.
   A tap changes the picture in about half a second, without a flash.
 - **Lesson:** lightening a pixel also fades its neighbours. Thin lines next to changed pixels vanished
@@ -97,6 +97,28 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** a loose wire on an analog pin looks like a press, and a half-closed brass contact
   hovers right at a single threshold. The internal pull-up and a two-threshold hysteresis fixed both.
 - Cable cut and short circuit are both reported, after 10 and 60 seconds.
+
+- The box got its talk computer and its own Wi-Fi (1–4 October). All three computers now run on the bench from one
+  PoE cable: the doorbell computer is the only wired one, runs the Wi-Fi "aikos" and bridges it into the LAN; the
+  talk computer (microphone, amplifier, speaker) and the screen join it. Wiring: [`firmware/WIRING.md`](../firmware/WIRING.md).
+- Two-way talk with the room keys runs through the shared voice library; the screen shows "Sprechen" after a ring,
+  the call, and the transcripts.
+- Self-healing for a box in the wall: a firmware counts as good only after 2 minutes healthy, 5 failed boots start a
+  safe firmware (doorbell computer: its own, in the factory partition), runtime guards restart a stuck network, and
+  the doorbell and talk computers watch each other over four wires and reset each other.
+- **Lesson:** ESPHome's `safe_mode` marks the running firmware good on every orderly restart by default
+  (`boot_is_good_on_shutdown`), which silently defeats the rollback. Off, and the guards restart without shutdown hooks.
+- **Lesson:** a bridged Ethernet + Wi-Fi port stalled the bell until the task watchdog fired: the bridge's 16-entry
+  forwarding table overflowed and every frame was flooded. 128 entries and all-multicast off fixed it.
+- **Lesson:** after a bell restart the screen paired the new boot id with the old press number, counted a phantom
+  press and then skipped the real ones. A new boot id now waits for its own press number.
+- **Lesson:** on 4 October two faults were breadboard contacts. The amplifier's ground had no contact (distorted sound
+  on every speaker, its 5 V read 4.4 V), and the button line's pull-up came loose (the line idled at 0.75 V instead of
+  2.02 V, which reads as a held button). Beep-test the ground and supply path before blaming a part; in the box,
+  solder or clamp.
+- **Lesson:** moving a wire with the power on took the talk computer off the network until a power cycle, and two days
+  earlier a live re-plug of the 5 V jumpers killed a board. Power off first, every time.
+- Power at the switch port with everything idle: 4.13 W, of which the screen takes about 1.75 W.
 
 ## Next
 
