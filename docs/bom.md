@@ -62,9 +62,9 @@ whether that module is fit for the outdoor box.
 
 | Qty | Part | Why | Notes |
 |---|---|---|---|
-| 1 | INMP441 I²S MEMS microphone module | voice at the door | 3.3 V only; the labelled side (sound hole) faces the membrane |
-| 1 | Adafruit MAX98357A I²S amplifier | drives the speaker | set to 3 dB: 100 kΩ from GAIN to Vin (GAIN to ground is 12 dB, louder); 10 µF + 0.1 µF at its supply |
-| 1 | VISATON K 40 SQ, 8 Ω, IP65/67 front | speaker behind the grille | 40 × 40 mm, Ø35 cut-out, 11.5 mm deep, 4 × Ø3.4 on 32 × 32; about €5.50 |
+| 1 | INMP441 I²S MEMS microphone module | voice at the door | 3.3 V only; measured Ø13 × 2.53 mm; the sound hole is centred on the smooth side (no components), which faces the front |
+| 1 | Adafruit MAX98357A I²S amplifier | drives the speaker | measured 20 × 20 mm, 12.2 mm high. Bench (2026-10-04): GAIN left open (9 dB), speech capped at −6 dB in firmware; 100 kΩ from GAIN to Vin gives 3 dB if the speaker needs more protection (GAIN to ground is 12 dB, louder). 10 µF + 0.1 µF at its supply. Its GND needs a solid connection: a loose ground distorted every sound |
+| 1 | VISATON K 40 SQ, 8 Ω, IP65/67 front | speaker behind the grille | 40 × 40 mm, Ø35 cut-out; datasheet 11.5 mm deep, 4 × Ø3.4 on 32 × 32, measured 12 mm high and Ø3.6 on 32.4; about €5.50 |
 | 1 pack | Self-adhesive PTFE vent membrane B+B Thermo-Technik DAM-AD10 (12 pcs) | keeps water out of the mic holes | 10.2 mm outer, **5.5 mm active**: one membrane per mic hole. Sold as a pressure vent: test voice quality through it |
 
 ## Light, sensor, heater
