@@ -55,6 +55,9 @@ class LilygoT5_47PlusDisplay : public display::DisplayBuffer {
   void set_partial_drive_percent(uint8_t percent) { this->partial_drive_percent_ = percent; }
   // true when no picture is waiting or being drawn, e.g. to pace an animation to the panel
   bool refresh_idle() const { return !this->pending_ && !this->busy_; }
+  // A solid rectangle in LOGICAL (rotated) coordinates, written as whole buffer rows: ~100x faster than
+  // ESPHome's filled_rectangle(), which sets every pixel on its own (a full page of frames took over 1 s).
+  void fill_rect(int x, int y, int w, int h, Color color);
 
  protected:
   void draw_absolute_pixel_internal(int x, int y, Color color) override;
@@ -90,6 +93,7 @@ class LilygoT5_47PlusDisplay : public display::DisplayBuffer {
   bool partial_updating_{true};
   uint32_t full_update_every_{30};
   uint32_t partial_count_{0};
+  uint32_t draw_failures_{0};  // full draws that could not run (Klingelbox, 2026-10-02 blank screen)
   volatile bool force_full_{true};  // the first refresh after boot is always full
 };
 

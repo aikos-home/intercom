@@ -1,6 +1,7 @@
 # Architecture
 
-State: 2026-09-24. Prototype stage: parts are on the bench, nothing is installed at the door yet.
+State: 2026-09-24, with the bench results of 2026-10-04 marked as such. Prototype stage: everything runs on the
+bench, nothing is installed at the door yet. How the bench is wired: [`firmware/WIRING.md`](../firmware/WIRING.md).
 
 The interactive version of this page is the [explorer](../explorer/). It shows every part, wire,
 joint and solder spot, and walks through what happens on a ring, in winter, at dusk and during a call.
@@ -14,19 +15,21 @@ joint and solder spot, and walks through what happens on a ring, in winter, at d
        │                                         protector   Cat6 cable    gland        │         │
        │                                          (earthed)                             │         └─ DC ─── 5 V rail ── talk computer ── mic, amplifier, speaker
        │                                                                                │                        └──── screen computer ── 4.7" e-paper touch
-       └──────────────── WiFi access point ~1 m away ···· radio ···· talk + screen computers
+       └── (bench 2026-10-04: the doorbell computer itself runs the Wi-Fi "aikos" for the talk and screen computers
+            and bridges it into the LAN; no separate access point)
 ```
 
 - **One cable.** A single ready-made outdoor Cat6 cable carries data and power (PoE, about 48 V)
   from the switch into the box. There is no power supply at the door and no switch in the box.
-- **Three small computers, each with one job.** They share only power and ground; no signal
-  wires run between them.
+- **Three small computers, each with one job.** They share power and ground. The only signal wires are four
+  supervision wires between the doorbell and the talk computer: a heartbeat each way and a reset line each way, so
+  each can restart the other if it hangs (bench 2026-10-04).
 
 | Computer | Board | Link | Job |
 |---|---|---|---|
 | Doorbell computer | Waveshare ESP32-S3-ETH (W5500), PoE via its plug-on module | wired | button line, light, heater, climate sensor, power governor |
-| Talk computer | open: an ESP32-S3 with PSRAM (the talk stack needs it) | WiFi | microphone, amplifier, two-way talk |
-| Screen computer | LilyGO T5-4.7-S3 Touch (H716) | WiFi | 4.7" e-paper touch screen behind the brass window |
+| Talk computer | ESP32-S3-N16R8 dev board (HW678); bench 2026-10-04 | WiFi ("aikos") | microphone, amplifier, two-way talk |
+| Screen computer | LilyGO T5-4.7-S3 Touch (H716) | WiFi ("aikos") | 4.7" e-paper touch screen behind the brass window |
 
 Why three and not one: the bell is the one function that must never fail. A crash or an update
 in the audio code cannot take it down when it runs on its own board with stock ESPHome only.
@@ -67,6 +70,10 @@ The e-paper panel is a parallel panel that needs its own driver board anyway.
 | 5 V rail | lever clamps feed all three computers, the amplifier, the level shifter and the LED strip |
 | 3.3 V | made on the doorbell and talk computers for the sensor, the button pull-up and the microphone |
 | Heater | about 5 W pad behind the display, through a 73 °C one-shot thermal fuse, switched low-side by an opto-coupled MOSFET module |
+
+**Bench, 2026-10-04:** there is no separate splitter yet. The doorbell computer's plug-on PoE module feeds a 5 V rail
+for all three computers and the amplifier; the switch port reads **4.13 W** with everything idle (the screen alone
+about 1.75 W). Whether that module stays in the box (temperature range, power for the heater) is still open.
 
 **Budget.** The surge protector's datasheet lists 802.3af, which allows 12.95 W at the device.
 A ring plus a call with the heater on comes to roughly 12.1 W (an estimate, not measured), so the

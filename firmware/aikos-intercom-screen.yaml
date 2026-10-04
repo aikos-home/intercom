@@ -1,0 +1,575 @@
+# aikos Intercom Screen: the door station's e-paper touch screen, on Wi-Fi (decided 2026-09-24).
+# Runs the door UI (ui/door_ui.h, proposal 1 from 2026-09-30) plus the network: Wi-Fi, encrypted HA API, OTA.
+# The bench demo (screen-demo.yaml) stays a separate firmware for testing the panel rules.
+# Names follow the aikos nomenclature (vertraege.md §1, 2026-09-30): network name aikos-<family>-<role>,
+# board only in the comment, project aikos-home.<family>-<part> (decided 16:45).
+#
+# First setup (setup/setup_page.h): Wi-Fi credentials are in no file. With none saved, the screen opens its own
+# network "aikos-intercom-screen" and SHOWS A QR CODE for it: scan, join, the captive portal opens, pick the home
+# Wi-Fi. After the first working connection the code never shows again (front door!); "Factory reset" in Home
+# Assistant starts over. Flashing over USB keeps the saved Wi-Fi: on this board NVS sits at 0xFA0000, past the image.
+#
+# Talk transcript TEST (talk/talk_page.h, aikos vertraege.md §6): a RoomKey records after a ring, the Mac Studio
+# transcribes it, HA holds it in sensor.talk_transcript; the stage shows "<speaker> sagt:" and the screen measures
+# ring -> picture.
+#
+# Every press, heard twice (ring/ring_path.h): directly from the bell by encrypted UDP (like the RoomKeys, works while
+# HA restarts) and via HA. Press identity = (boot id, press number): first path wins, nothing counts twice.
+
+substitutions:
+  ap_ssid: aikos-intercom-screen
+  ap_password: !secret screen_ap_password   # letters, digits, "_" only: nothing to escape in the WIFI: code
+
+esphome:
+  name: aikos-intercom-screen
+  friendly_name: aikos Intercom Screen
+  comment: "Intercom · LilyGO T5-4.7-S3 Touch (H716)"
+  min_version: 2026.3.0
+  project:
+    name: aikos-home.intercom-screen
+    version: "0.7.12"
+  includes:
+    - demo/demo.h          # the finger-drawing canvas
+    - setup/setup_page.h
+    - talk/talk_page.h
+    - ring/ring_path.h
+    - call/call_page.h     # voice v2: the call as the screen shows it
+    - ui/door_ui.h
+  on_boot:
+    - priority: 600
+      then:
+        - lambda: |-
+            aikos_setup::assets.title = id(m48);
+            aikos_setup::assets.text = id(r32);
+            aikos_setup::assets.icon = id(i96);
+            aikos_setup::assets.join = id(qr_wifi_join);
+            aikos_setup::assets.portal = id(qr_setup_portal);
+            auto &a = door_ui::a;
+            a.r32 = id(r32); a.r40 = id(r40);
+            a.m32 = id(m32); a.m40 = id(m40); a.m48 = id(m48);
+            a.b44 = id(b44); a.b48 = id(b48); a.b60 = id(b60);
+            a.i48 = id(i48); a.i64 = id(i64); a.i96 = id(i96); a.i120 = id(i120);
+            a.friends = id(qr_friends);
+            door_ui::fast_rect = [](int x, int y, int w, int h, esphome::Color c) { id(epaper).fill_rect(x, y, w, h, c); };
+            door_ui::disp = id(epaper);   // the call page measures chat lines before it decides: ink only or a new page
+            aikos_ring::on_press = [](uint32_t now) {
+              aikos_talk::on_ring(now);
+              door_ui::rang(now);
+            };
+    - priority: -100
+      then:
+        - lambda: |-
+            door_ui::set_sign(id(door_sign).state);
+            door_ui::set_note(id(house_note).state);
+            door_ui::set_targets(id(ring_targets).state);
+            door_ui::set_quiet(id(quiet_hours).state);
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  cpu_frequency: 240MHz
+  flash_size: 16MB
+  framework:
+    type: arduino
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+i2c:
+  id: lilygo_t5_47_plus_i2c
+  sda: GPIO18
+  scl: GPIO17
+  frequency: 400kHz
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [lilygo_t5_47_plus, aikos_wifi]
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+
+globals:
+  - id: wifi_proven   # a connection has worked once: the setup code stays hidden from then on
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  - {id: dirty, type: bool, initial_value: "true"}          # a new picture is due
+  - {id: page_pending, type: bool, initial_value: "true"}   # ... and it is a true page change (short flash)
+
+font:   # all text fonts carry Latin Core: names, notes and transcripts come from Home Assistant as free text
+  - {file: "gfonts://Roboto", id: r32, size: 32, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto", id: r40, size: 40, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@500", id: m32, size: 32, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@500", id: m40, size: 40, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@500", id: m48, size: 48, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@700", id: b44, size: 44, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@700", id: b48, size: 48, bpp: 4, glyphsets: [GF_Latin_Core]}
+  - {file: "gfonts://Roboto@700", id: b60, size: 60, bpp: 4, glyphsets: [GF_Latin_Core]}
+  # Material Symbols: doorbell south notifications_active bedtime package_2 person_search mic draw qr_code_2
+  # record_voice_over subtitles graphic_eq voicemail arrow_back groups person send close check_circle ink_eraser
+  # + wifi and the older check_circle (setup page) + expand_less expand_more (call page: older / newest)
+  - file: "gfonts://Material+Symbols+Outlined"
+    id: i48
+    size: 48
+    bpp: 4
+    glyphs: &ICONS ["\U0000efff", "\U0000f1e3", "\U0000e7f7", "\U0000f159", "\U0000f569", "\U0000f106", "\U0000e31d",
+                    "\U0000e746", "\U0000e00a", "\U0000e91f", "\U0000e048", "\U0000e1b8", "\U0000e0d9", "\U0000e5c4",
+                    "\U0000f233", "\U0000f0d3", "\U0000e163", "\U0000e5cd", "\U0000f0be", "\U0000e6d0", "\U0000e63e",
+                    "\U0000e86c", "\U0000e5ce", "\U0000e5cf"]
+  - {file: "gfonts://Material+Symbols+Outlined", id: i64, size: 64, bpp: 4, glyphs: *ICONS}
+  - {file: "gfonts://Material+Symbols+Outlined", id: i96, size: 96, bpp: 4, glyphs: *ICONS}
+  - {file: "gfonts://Material+Symbols+Outlined", id: i120, size: 120, bpp: 4, glyphs: *ICONS}
+
+qr_code:
+  - id: qr_wifi_join
+    value: "WIFI:T:WPA;S:${ap_ssid};P:${ap_password};;"
+    ecc: MEDIUM
+  - id: qr_setup_portal
+    value: http://192.168.4.1
+    ecc: LOW
+  - id: qr_friends   # placeholder until the friends page exists (requirement 6, stage 2)
+    value: https://aikos.clei.ai/freunde
+    ecc: MEDIUM
+
+display:
+  - platform: lilygo_t5_47_plus
+    id: epaper
+    rotation: 270              # ribbon and USB end down
+    update_interval: never
+    auto_clear_enabled: false  # the UI clears itself; a drawing stroke only adds ink to the last picture
+    partial_updating: true
+    full_update_every: 100     # safety net; the UI flashes itself on page changes and 2 min after the last change
+    max_partial_percent: 100
+    lambda: |-
+      if (aikos_setup::draw(it))
+        return;
+      door_ui::draw(it);
+
+touchscreen:
+  - platform: lilygo_t5_47_plus
+    id: touch
+    display: epaper
+    i2c_id: lilygo_t5_47_plus_i2c
+    update_interval: 20ms
+    on_touch:
+      - lambda: |-
+          if (aikos_setup::state != aikos_setup::NORMAL)
+            return;   // the setup page takes no touches: setup is never triggered from outside
+          door_ui::touch(touch.x, touch.y, millis());
+    on_update:
+      - lambda: |-
+          if (!touches.empty())
+            door_ui::move(touches[0].x, touches[0].y);
+    on_release:
+      - lambda: door_ui::release();
+
+interval:
+  - interval: 20ms
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          bool page = false;
+          if (aikos_setup::update(id(wifi_proven), now)) {
+            ESP_LOGI("setup", "page %d", aikos_setup::state);
+            page = true;
+          }
+          const int talk = aikos_talk::update(now, !id(dirty) && id(epaper).refresh_idle());
+          if (talk & aikos_talk::MEASURED) {
+            id(talk_ring_to_text).publish_state(aikos_talk::ring_to_text_s);
+            id(talk_ring_to_screen).publish_state(aikos_talk::ring_to_screen_s);
+          }
+          door_ui::tick(now);
+          if (door_ui::want_page) {
+            door_ui::want_page = false;
+            page = true;
+          }
+          if (door_ui::want_partial) {
+            door_ui::want_partial = false;
+            id(dirty) = true;
+          }
+          // the visitor's one-time "Sprechen": a 1.5 s pulse straight to the talk computer (it starts the call on the edge)
+          static uint32_t speak_until = 0;
+          if (door_ui::speak_request) {
+            door_ui::speak_request = false;
+            speak_until = now | 1;
+            id(ptt_held).publish_state(true);
+          } else if (speak_until != 0 && now - speak_until >= 1500) {
+            speak_until = 0;
+            id(ptt_held).publish_state(false);
+          }
+          if (aikos_ring::count_new) {
+            aikos_ring::count_new = false;
+            id(ring_via_direct).publish_state(aikos_ring::via_direct);
+            id(ring_via_ha).publish_state(aikos_ring::via_ha);
+          }
+          if (aikos_ring::lead_new) {
+            aikos_ring::lead_new = false;
+            id(ring_direct_lead).publish_state(aikos_ring::lead_ms);
+          }
+          if (page) {
+            id(epaper).set_page_change_style(1);  // a new page: the short flash
+            id(epaper).request_page_change();
+            id(dirty) = true;
+            id(page_pending) = true;
+            door_ui::full_needed = true;
+          }
+          if (id(dirty) && id(epaper).refresh_idle()) {
+            id(dirty) = false;
+            demo::canvas_ready();
+            door_ui::picture_sent(id(page_pending));
+            id(page_pending) = false;
+            const uint32_t t0 = millis();
+            id(epaper).update();
+            const uint32_t dt = millis() - t0;
+            if (dt > 100)
+              ESP_LOGW("ui", "rendering a picture took %u ms", (unsigned) dt);
+          }
+
+text_sensor:
+  # voice v2: the call (aikos call log, people) and the talk computer's state, all as the one source each
+  - platform: homeassistant   # the chat of the running call, oldest first (aikos §4b)
+    id: call_log_json
+    entity_id: sensor.aikos_call_log
+    attribute: messages_json
+    internal: true
+    on_value:
+      - lambda: |-
+          if (x.empty() || x == "unknown" || x == "unavailable")
+            return;
+          static aikos_call::Msg list[aikos_call::MAX_MSGS];
+          int n = 0;
+          JsonDocument doc = json::parse_json(reinterpret_cast<const uint8_t *>(x.data()), x.size());
+          JsonArray arr = doc.as<JsonArray>();
+          const int skip = (int) arr.size() > aikos_call::MAX_MSGS ? (int) arr.size() - aikos_call::MAX_MSGS : 0;
+          int k = 0;
+          for (JsonObject m : arr) {
+            if (k++ < skip)
+              continue;
+            list[n].id = m["id"] | "";
+            list[n].side = m["side"] | "";
+            list[n].who = m["who"] | "";
+            list[n].text = m["text"] | "";
+            if (!list[n].text.empty())
+              n++;
+          }
+          aikos_call::set_messages(list, n);
+  - platform: homeassistant   # R22: the call log's messages are shown only while its call is on
+    id: call_log_active
+    entity_id: sensor.aikos_call_log
+    attribute: active
+    internal: true
+    on_value:   # HA sends a bool attribute as "on"/"off"; "True" also counts, anything else (unavailable) is off
+      - lambda: aikos_call::set_log_active(x == "on" || x == "True" || x == "true");
+  - platform: homeassistant   # every key: node -> {name, room, host}; the screen needs last octet -> name
+    id: people_json
+    entity_id: sensor.aikos_people
+    attribute: keys_json
+    internal: true
+    on_value:
+      - lambda: |-
+          if (x.empty() || x == "unknown" || x == "unavailable")
+            return;
+          JsonDocument doc = json::parse_json(reinterpret_cast<const uint8_t *>(x.data()), x.size());
+          aikos_call::clear_people();
+          for (JsonPair kv : doc.as<JsonObject>())
+            aikos_call::add_person(kv.value()["host"] | "", kv.value()["name"] | "");
+          aikos_call::status_version++;
+  - platform: homeassistant   # the keys in the call ("144,110"), from the talk computer
+    id: call_members
+    entity_id: sensor.aikos_intercom_talk_call_member_keys
+    internal: true
+    on_value:
+      - lambda: |-
+          aikos_call::set_members(x == "unknown" || x == "unavailable" ? std::string() : x);
+  - platform: homeassistant
+    id: talk_stamp
+    entity_id: sensor.talk_transcript
+    on_value:
+      - lambda: aikos_talk::on_stamp(x, millis());
+  - platform: homeassistant
+    id: talk_text
+    entity_id: sensor.talk_transcript
+    attribute: text
+    on_value:
+      - lambda: aikos_talk::on_text(x, millis());
+  - platform: homeassistant
+    id: talk_device
+    entity_id: sensor.talk_transcript
+    attribute: device
+    on_value:
+      - lambda: aikos_talk::on_device(x);
+  - platform: homeassistant   # who spoke, as said ("Max", "Paketdienst · DHL"); empty if nobody introduced themselves
+    id: talk_speaker
+    entity_id: sensor.talk_transcript
+    attribute: speaker
+    on_value:
+      - lambda: aikos_talk::on_speaker(x, millis());
+  - platform: homeassistant   # the text without greeting and introduction; empty if only the introduction was said
+    id: talk_message
+    entity_id: sensor.talk_transcript
+    attribute: message
+    on_value:
+      - lambda: aikos_talk::on_message(x, millis());
+  - platform: homeassistant   # spoken language code; arrives ~1.3 s after the text, same timestamp
+    id: talk_language
+    entity_id: sensor.talk_transcript
+    attribute: language
+    on_value:
+      - lambda: door_ui::set_language(x, id(talk_language_name).state);
+  - platform: homeassistant   # e.g. "Englisch"
+    id: talk_language_name
+    entity_id: sensor.talk_transcript
+    attribute: language_name
+    on_value:
+      - lambda: door_ui::set_language(id(talk_language).state, x);
+
+# What the door shows, set in Home Assistant (later by the aikos integration). Kept on the device across restarts.
+text:
+  - platform: template
+    id: door_sign
+    name: Door sign             # e.g. a family name above the stage; empty = none (the owner decides)
+    mode: text
+    max_length: 40
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - lambda: door_ui::set_sign(x);
+  - platform: template
+    id: house_note
+    name: House note            # e.g. where parcels go; empty = no note box
+    mode: text
+    max_length: 80
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - lambda: door_ui::set_note(x);
+  - platform: template
+    id: ring_targets
+    name: Ring targets          # comma separated, first = everybody; names stay on the device, never in the repo
+    mode: text
+    max_length: 120
+    optimistic: true
+    restore_value: true
+    initial_value: "Alle im Haus"
+    entity_category: config
+    on_value:
+      - lambda: door_ui::set_targets(x);
+
+switch:
+  - platform: template
+    id: quiet_hours
+    name: Quiet hours (test)    # stand-in until aikos provides the quiet-hours entity
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    on_turn_on:
+      - lambda: door_ui::set_quiet(true);
+    on_turn_off:
+      - lambda: door_ui::set_quiet(false);
+
+# Direct ring path: the bell (provider aikos-intercom-bell) sends to this screen's fixed address, UDP 18511.
+# And the other way inside the door: this screen tells the talk computer when the visitor holds the talk button.
+udp:
+  addresses:
+    - !secret talk_host
+
+packet_transport:
+  - platform: udp
+    encryption:
+      key: !secret door_link_key     # what this screen sends (the talk button), only the talk computer has it
+    rolling_code_enable: true
+    update_interval: 1s              # the talk button state again every second: a lost packet can't swallow a release
+    binary_sensors:
+      - ptt_held
+    providers:
+      - name: aikos-intercom-bell
+        encryption:
+          key: !secret ring_transport_key
+      - name: aikos-intercom-talk         # the talk computer's broadcast: the call state without HA (system test F2)
+        encryption:
+          key: !secret key_link_key
+
+binary_sensor:
+  - platform: template
+    id: ptt_held
+    name: Visitor holds talk button
+    icon: mdi:gesture-tap-hold
+  - platform: homeassistant   # the talk computer has a call (a key held, or the visitor tapped "Sprechen")
+    id: talk_in_call
+    entity_id: binary_sensor.aikos_intercom_talk_in_call
+    on_state:
+      - lambda: |-
+          door_ui::set_call(x);
+          aikos_talk::set_conversation(x);
+  - platform: packet_transport   # the same, straight from the talk computer (works while HA is down)
+    provider: aikos-intercom-talk
+    remote_id: door_answered
+    id: talk_answered_direct
+    on_state:
+      - lambda: aikos_call::set_answered(x);
+  - platform: homeassistant   # some key answered or joined: "Nachricht hinterlassen" goes (the owner, 2026-10-01)
+    id: talk_answered
+    entity_id: binary_sensor.aikos_intercom_talk_answered
+    on_state:
+      - lambda: aikos_call::set_answered(x);
+
+debug:
+  update_interval: 30s
+
+sensor:
+  - platform: debug   # the internal heap: on 2026-10-02 fragmentation left no 8 KB block and the panel stayed blank
+    free:
+      name: Heap free
+    block:
+      name: Heap largest block
+    min_free:
+      name: Heap minimum free
+  - platform: packet_transport   # the call straight from the talk computer, every second: its id, 0 = no call (F2)
+    provider: aikos-intercom-talk
+    remote_id: door_call_id
+    id: talk_call_direct
+    on_raw_value:
+      - lambda: |-
+          if (std::isnan(x))
+            return;
+          aikos_call::set_door_call((uint32_t) x);  // R22: another call id forgets the chat, before the page is drawn
+          door_ui::set_call_direct(x != 0, millis());
+  - platform: packet_transport   # who speaks, straight from the talk computer
+    provider: aikos-intercom-talk
+    remote_id: floor_key
+    id: talk_floor_direct
+    on_raw_value:
+      - lambda: |-
+          if (!std::isnan(x))
+            aikos_call::set_floor((int) x);
+  - platform: homeassistant   # who speaks inside: the last octet of the key that has the floor, 0 = nobody
+    entity_id: sensor.aikos_intercom_talk_floor_key
+    id: talk_floor_key
+    on_value:
+      - lambda: |-
+          aikos_call::set_floor(std::isnan(x) ? 0 : (int) x);
+  - platform: packet_transport
+    provider: aikos-intercom-bell
+    remote_id: boot_id
+    id: bell_boot_direct
+    on_value:
+      - lambda: aikos_ring::direct_boot(x, millis());
+  - platform: packet_transport
+    provider: aikos-intercom-bell
+    remote_id: presses
+    id: bell_presses_direct
+    on_value:
+      - lambda: aikos_ring::direct_presses(x, millis());
+  # the same numbers via HA (contract rename to sensor.doorbell_boot_id / sensor.doorbell_presses pending with RoomKey)
+  - platform: homeassistant
+    entity_id: sensor.s3poeeth_intercom_bell_boot_id
+    id: bell_boot_ha
+    on_value:
+      - lambda: aikos_ring::ha_boot(x, millis());
+  - platform: homeassistant
+    entity_id: sensor.s3poeeth_intercom_bell_presses_since_boot
+    id: bell_presses_ha
+    on_value:
+      - lambda: aikos_ring::ha_presses(x, millis());
+  - platform: template
+    id: ring_via_direct
+    name: Ring presses via direct path
+    icon: mdi:lan-connect
+    state_class: total_increasing
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: ring_via_ha
+    name: Ring presses via Home Assistant
+    icon: mdi:home-assistant
+    state_class: total_increasing
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: ring_direct_lead
+    name: Ring direct path lead
+    unit_of_measurement: ms
+    icon: mdi:timer-outline
+    state_class: measurement
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: talk_ring_to_text
+    name: Talk ring to text
+    unit_of_measurement: s
+    device_class: duration
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+  - platform: template
+    id: talk_ring_to_screen
+    name: Talk ring to screen
+    unit_of_measurement: s
+    device_class: duration
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: never
+
+# No `networks:` here: that would make ESPHome forget the Improv-entered house Wi-Fi (aikos_wifi below adds "aikos").
+wifi:
+  # no network for 5 min -> reboot (ESPHome default 15 min). Connected-but-dead is caught by aikos_wifi's gateway guard.
+  reboot_timeout: 5min
+  ap:
+    ssid: ${ap_ssid}
+    password: ${ap_password}
+
+# the bell's Wi-Fi "aikos" first, the house Wi-Fi as fallback, back to "aikos" by itself (bausteine/tuerstation.md H3)
+aikos_wifi:
+  id: aikos_net
+  password: !secret aikos_wifi_password
+  bell: !secret bell_host
+
+captive_portal:
+
+json:   # the call log and the people list arrive as JSON text
+
+api:
+  encryption:
+    key: !secret screen_api_key
+  # Don't reboot when Home Assistant is away (as the bell): a restart cannot bring HA back. ESPHome's default (15 min)
+  # rebooted the talk computer every 15 min while HA looked for it at an old address (seen 2026-10-03 night).
+  reboot_timeout: 0s
+  actions:
+    - action: test_reboot_unconfirmed   # TEST ONLY (H4 stage 4): restart without shutdown hooks (boot counter kept)
+      then:
+        - lambda: App.reboot();
+    - action: wifi_test_leave_aikos   # bench test: to the house Wi-Fi now; must come back to "aikos" by itself
+      then:
+        - lambda: id(aikos_net)->test_leave_aikos();
+
+# aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
+# confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own
+# guards, which would defeat the bootloader's rollback to the previous firmware.
+safe_mode:
+  boot_is_good_on_shutdown: false
+  # H4 stage 2: our health check confirms the firmware after 2 min healthy; this is only the upper bound
+  boot_is_good_after: 60min
+  num_attempts: 5   # H4 stage 4: 5 failed boots in a row -> safe mode
+
+ota:
+  - platform: esphome
+    password: !secret screen_ota_password
+
+button:
+  - platform: restart     # the everyday one (aikos stack, 2026-10-01)
+    name: Restart
+    entity_category: diagnostic
+  - platform: factory_reset
+    name: Factory reset   # forgets the Wi-Fi: the setup code shows again; hidden in HA until someone enables it
+    entity_category: config
+    disabled_by_default: true

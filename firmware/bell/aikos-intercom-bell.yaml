@@ -3,7 +3,9 @@
 # Why this board: the WT32-ETH01 starts in download mode because its oscillator holds IO0 low
 # (see wt32eth-intercom-bell.yaml). The W5500 needs no clock on a strapping pin, and the board has
 # native USB-C, so no adapter and no boot bridge are needed.
-# Name per scheme <board>-<system>-<role>. The bell logic itself lives in bell-core.yaml.
+# Names follow the aikos nomenclature (network name aikos-<family>-<role>, board only in the comment;
+# until 2026-09-30 this device was s3poeeth-intercom-bell, its HA entity ids keep that prefix).
+# The bell logic itself lives in bell-core.yaml.
 # Pins: Waveshare wiki ESP32-S3-ETH (W5500 MISO 12, MOSI 11, SCLK 13, CS 14, INT 10, RST 9;
 # GPIO33-37 are taken by the PSRAM).
 
@@ -19,22 +21,25 @@ substitutions:
   line_voltage_report: 1s          # bench: live; set 30s for the real door
 
 esphome:
-  name: s3poeeth-intercom-bell
-  friendly_name: S3POEETH Intercom Bell
+  name: aikos-intercom-bell
+  friendly_name: aikos Intercom Bell
+  comment: "Intercom · Waveshare ESP32-S3-ETH"
   project:
     name: aikos-home.intercom-bell
-    version: "0.2.0"
+    version: "0.3.1"
 
 # Direct ring path: unicast to each RoomKey's fixed address (addresses live in secrets.yaml, never in the repo).
 udp:
   addresses:
     - !secret ring_target_1
     - !secret ring_target_2
+    - !secret ring_target_3   # the door screen: shows "Es klingelt" even while HA restarts
 
 esp32:
   board: esp32-s3-devkitc-1
   variant: esp32s3
   flash_size: 16MB
+  partitions: partitions-bell.csv   # factory = safe firmware (aikos H4 stage 4); app0/app1 = normal firmware
   framework:
     type: esp-idf
 
@@ -50,6 +55,42 @@ ethernet:
 logger:
   level: INFO
   hardware_uart: USB_SERIAL_JTAG
+
+# aikos H4 stage 4 (the owner 03.10.2026): the bell's own SAFE firmware sits in the factory partition (partitions-bell.csv,
+# built from aikos-intercom-bell-safe.yaml). 5 failed boots in a row -> ESPHome's safe_mode reports a boot loop -> the
+# normal firmware boots the safe one, which still rings (Ethernet only) and goes back to the normal firmware after 60 min.
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [aikos_firmware, aikos_peer_guard]
+
+aikos_firmware:
+  role: normal
+
+# aikos H4 (03.10.): bell and talk computer bring each other back by wire (aikos_peer_guard). Header pins: GPIO40 = pin 11,
+# GPIO39 = pin 12, GND = pin 13, GPIO38 = pin 14 (right row, PINOUT.md). In the safe firmware too.
+aikos_peer_guard:
+  heartbeat_out: GPIO39          # -> talk computer GPIO8
+  peers:
+    - name: talk
+      heartbeat_in: GPIO38       # <- talk computer GPIO18
+      reset_out: GPIO40          # -> talk computer RST (open-drain, pulls low 200 ms)
+      resets:
+        name: Talk computer resets by the bell
+        entity_category: diagnostic
+
+safe_mode:
+  on_safe_mode:
+    - lambda: aikos_firmware::boot_safe_firmware();
+
+binary_sensor:
+  - platform: template
+    id: safe_firmware_running
+    name: Safe firmware
+    icon: mdi:lifebuoy
+    entity_category: diagnostic
+    lambda: return aikos_firmware::running_safe_firmware();
 
 api:
   encryption:

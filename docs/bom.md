@@ -34,6 +34,10 @@ Parts marked **measure** have dimensions the maker does not publish. The drawing
 | 2 | Resettable PTC fuse, 0.5 A hold (e.g. FREI PFRA 050) | protects the rail from the LED branch | 0.5 A covers the ~4 LEDs used |
 | 2 | 1000 µF / 25 V low-ESR and 10 µF electrolytic capacitors | at the LED strip and at the amplifier | stripe = minus |
 
+**Bench, 2026-10-04:** all three computers and the amplifier run from the doorbell computer's plug-on PoE Module (B),
+with no separate splitter (4.13 W at the switch port). The splitter decision below stays open until it is clear
+whether that module is fit for the outdoor box.
+
 **The splitter decision**
 
 | | 12 V: TRENDnet TI-SG104 | 5 V: Waveshare industrial PoE splitter |
@@ -51,16 +55,16 @@ Parts marked **measure** have dimensions the maker does not publish. The drawing
 | Qty | Part | Why | Notes |
 |---|---|---|---|
 | 1 | Waveshare ESP32-S3-POE-ETH (board + plug-on PoE Module (B)) | doorbell computer, wired | about €25–32; USB-C, so no serial adapter. Pin headers come loose and must be soldered |
-| 1 | talk computer: open, an ESP32-S3 with PSRAM | two-way talk, on WiFi | the WT32-ETH01 planned first is **not** recommended: see [`firmware/bell/`](../firmware/bell/README.md#why-not-the-wt32-eth01) |
+| 1 | talk computer: an ESP32-S3 dev board (bench: ESP32-S3-N16R8 "HW678") | two-way talk, on WiFi | the WT32-ETH01 planned first is **not** recommended: see [`firmware/bell/`](../firmware/bell/README.md#why-not-the-wt32-eth01) |
 | 1 | LilyGO T5-4.7-S3 **Touch** (SKU H716) | screen computer + 4.7" e-paper, 960 × 540 | about €55 at OpenELAB; several marketplace listings with a touch photo are **not** touch versions; **measure** the mounting holes. Touch chip on ours: GT911 at I²C 0x5D, which ESPHome supports (check yours with `tools/touch_scan.py`) |
 
 ## Audio
 
 | Qty | Part | Why | Notes |
 |---|---|---|---|
-| 1 | INMP441 I²S MEMS microphone module | voice at the door | 3.3 V only; the labelled side (sound hole) faces the membrane |
-| 1 | Adafruit MAX98357A I²S amplifier | drives the speaker | set to 3 dB: 100 kΩ from GAIN to Vin (GAIN to ground is 12 dB, louder); 10 µF + 0.1 µF at its supply |
-| 1 | VISATON K 40 SQ, 8 Ω, IP65/67 front | speaker behind the grille | 40 × 40 mm, Ø35 cut-out, 11.5 mm deep, 4 × Ø3.4 on 32 × 32; about €5.50 |
+| 1 | INMP441 I²S MEMS microphone module | voice at the door | 3.3 V only; measured Ø13 × 2.53 mm; the sound hole is centred on the smooth side (no components), which faces the front |
+| 1 | Adafruit MAX98357A I²S amplifier | drives the speaker | measured 20 × 20 mm, 12.2 mm high. Bench (2026-10-04): GAIN left open (9 dB), speech capped at −6 dB in firmware; 100 kΩ from GAIN to Vin gives 3 dB if the speaker needs more protection (GAIN to ground is 12 dB, louder). 10 µF + 0.1 µF at its supply. Its GND needs a solid connection: a loose ground distorted every sound |
+| 1 | VISATON K 40 SQ, 8 Ω, IP65/67 front | speaker behind the grille | 40 × 40 mm, Ø35 cut-out; datasheet 11.5 mm deep, 4 × Ø3.4 on 32 × 32, measured 12 mm high and Ø3.6 on 32.4; about €5.50 |
 | 1 pack | Self-adhesive PTFE vent membrane B+B Thermo-Technik DAM-AD10 (12 pcs) | keeps water out of the mic holes | 10.2 mm outer, **5.5 mm active**: one membrane per mic hole. Sold as a pressure vent: test voice quality through it |
 
 ## Light, sensor, heater

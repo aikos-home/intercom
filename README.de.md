@@ -71,12 +71,12 @@ im Audiocode kann sie deshalb nie stumm schalten. Details, Strombudget und Winte
 | [`docs/family-app.md`](docs/family-app.md) | die geplante selbst gehostete App für den Haushalt |
 | [`hardware/`](hardware/) | Front, Kasten und Diffusor: Skripte, STL und STEP, Maßzeichnungen der Teile |
 | [`explorer/`](explorer/) | die interaktive Karte und ihr Build |
-| [`firmware/screen/`](firmware/screen/) | ESPHome-Firmware für den Bildschirm, mit schneller Aktualisierung ohne Aufblitzen und einer Demo (Englisch) |
+| [`firmware/`](firmware/) | ESPHome-Firmware für alle drei Rechner: [Klingel](firmware/bell/), [Sprechen](firmware/talk_computer/), Bildschirm (Englisch) |
+| [`firmware/WIRING.md`](firmware/WIRING.md) | wie die drei Rechner am Labortisch verdrahtet sind, Pin für Pin (Englisch) |
 | [`docs/screen-ux.md`](docs/screen-ux.md) | was der Bildschirm an der Tür zeigen kann und was nicht, am Panel getestet (Englisch) |
 | [`tools/`](tools/) | der Datenschutz-Scan vor jedem Push und Testskripte für den Labortisch |
 
-Die Firmware für Klingel- und Sprechrechner und die Home-Assistant-Automationen kommen dazu,
-sobald sie die Tests auf dem Labortisch bestanden haben.
+Die Home-Assistant-Automationen sind noch nicht in diesem Repo.
 
 ## Sicherheit
 
@@ -89,7 +89,7 @@ sobald sie die Tests auf dem Labortisch bestanden haben.
 ## Lizenzen
 
 - Code (Skripte, Explorer, Firmware): [MIT](LICENSE), außer dem Bildschirmtreiber in
-  `firmware/screen/components/`, der seine Lizenz behält (GPLv3 für C/C++)
+  `firmware/components/lilygo_t5_47_plus/`, der seine Lizenz behält (GPLv3 für C/C++)
 - Hardware (CAD-Skripte, STL, STEP, Zeichnungen): [CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)
 - Dokumentation und Bilder: [CC BY 4.0](LICENSES/CC-BY-4.0.txt)
 

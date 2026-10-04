@@ -10,6 +10,12 @@
 
 namespace demo {
 
+// Hook for the product firmware: a page drawn instead of the demo (e.g. the first Wi-Fi setup).
+// overlay(it) returns true when it drew the whole page; while it does, touches are not for the demo.
+inline bool (*overlay)(esphome::display::Display &it) = nullptr;
+inline bool overlay_shown = false;
+inline void (*overlay_touch)(int x, int y) = nullptr;  // gets the touches while the overlay is shown
+
 static const int CW = 540, CH = 960;
 static const int CSTRIDE = 68;     // bytes per canvas row: 544 px, so every row starts on a byte
 static uint8_t *canvas = nullptr;  // 1 bit per pixel, set = ink
