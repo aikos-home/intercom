@@ -20,6 +20,9 @@ globals:
   - id: press_count
     type: uint32_t
     initial_value: "0"
+  - id: test_press_until   # TEST: millis() until which a test press holds the button (0 = none); see the board file
+    type: uint32_t
+    initial_value: "0"
 
 # A signal wire that falls off must look like "cable cut", never like a press: a floating ADC pin
 # reads near 0 V (= pressed). The chip's weak internal pull-up (~45 kΩ, parallel to the 10 kΩ) pulls
@@ -91,7 +94,15 @@ sensor:
             // counted one press twice. Pressed below th_pressed, released only above th_released.
             static bool pressed = false;
             pressed = pressed ? (x < ${th_released}) : (x < ${th_pressed});
-            id(doorbell_button).publish_state(pressed);
+            // TEST: a test press (API action test_press) holds the button like a closed contact, so it runs the very
+            // same path as a real press (filters, counter, ringing, direct ring path, HA event)
+            bool test = false;
+            if (id(test_press_until) != 0) {
+              test = static_cast<int32_t>(millis() - id(test_press_until)) < 0;
+              if (!test)
+                id(test_press_until) = 0;
+            }
+            id(doorbell_button).publish_state(pressed || test);
             id(line_cut).publish_state(x > ${th_cut});
             id(line_shorted).publish_state(pressed);
 
@@ -144,7 +155,7 @@ binary_sensor:
     name: Doorbell button
     icon: mdi:doorbell
     filters:
-      - delayed_off: 20ms   # ride through contact chatter; short, so fast presses stay separate
+      - delayed_off: 60ms   # ride through contact chatter: the brass contact opened for 29-48 ms inside one press (2026-10-04), real storm presses were >= 68 ms apart
     on_press:
       - lambda: |-
           id(press_ms) = millis();

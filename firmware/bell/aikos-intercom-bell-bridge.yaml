@@ -16,7 +16,7 @@ external_components:
 esphome:
   project:
     name: aikos-home.intercom-bell
-    version: "0.3.20-bridge"
+    version: "0.3.23-bridge"
 
 wifi:
   # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
@@ -32,6 +32,17 @@ eth_wifi_bridge:
 debug:
   update_interval: 30s
 
+# Climate (box wiring 2026-10-16/17, ../WIRING.md): one I2C bus over the distribution board. Bell header pin 34 (GPIO17)
+# = SDA, pin 31 (GPIO18) = SCL, 3V3 from pin 36. On the bus: the SHT31-D in the outdoor chamber (0x44, ADR open) and the
+# BME280 on the distribution board (GY-BME280, CSB/SDO open -> 0x76 expected; the scan at boot logs what answers).
+# Both modules bring their own pull-ups. Here and not in bell-core.yaml: the WT32-ETH01 needs GPIO17 for Ethernet.
+i2c:
+  id: bus_climate
+  sda: GPIO17
+  scl: GPIO18
+  frequency: 100kHz
+  scan: true
+
 sensor:
   - platform: debug
     free:
@@ -40,3 +51,21 @@ sensor:
       name: Heap largest block
     min_free:
       name: Heap minimum free
+  - platform: sht3xd
+    i2c_id: bus_climate
+    address: 0x44
+    update_interval: 60s
+    temperature:
+      name: Outdoor temperature
+    humidity:
+      name: Outdoor humidity
+  - platform: bme280_i2c
+    i2c_id: bus_climate
+    address: 0x76
+    update_interval: 60s
+    temperature:
+      name: Box temperature
+    humidity:
+      name: Box humidity
+    pressure:
+      name: Air pressure

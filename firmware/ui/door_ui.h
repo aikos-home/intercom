@@ -40,8 +40,7 @@ inline esphome::Color paper(int grey) {
 }
 inline const esphome::Color INK = esphome::display::COLOR_ON;
 inline const esphome::Color PAPER = esphome::display::COLOR_OFF;
-inline const esphome::Color MID = paper(140);    // grey text: level 8, clearly lighter than black
-inline const esphome::Color LIGHT = paper(205);  // band fill: level 12
+// No grey for text or behind text (the owner, 2026-10-04): text is black on white or white on black only.
 
 namespace icon {
 static const char *const DOORBELL = "\U0000efff";
@@ -104,6 +103,7 @@ inline uint32_t partials_since_flash = 0;
 // the call page's chat: messages [chat_first, n) are on the screen; latest = it follows new messages
 inline int chat_first = 0;
 inline bool chat_latest = true, shown_answered = false, speak_request = false;
+inline bool shown_placeholder = false;  // the call page shows the grey "Hier erscheint das Gespräch als Text."
 inline uint32_t seen_chat = 0, seen_status = 0, speak_ms = 0;
 inline Display *disp = nullptr;  // for measuring text outside the draw lambda (set at boot)
 // requests to the YAML glue
@@ -353,7 +353,7 @@ inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
     it.print(270, y, a.b60, INK, TextAlign::TOP_CENTER, "Es klingelt");
     y += 76;
     y += text(it, a.r40, 270, y, 48, INK, TextAlign::TOP_CENTER, who, W, 2) * 48 + 14;
-    text(it, a.r32, 270, y, 40, waited ? INK : MID, TextAlign::TOP_CENTER, status, W, 3);
+    text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, status, W, 3);
   } else if (quiet) {
     const std::string s = "Die Klingel ist jetzt leise. Hinterlassen Sie gern eine Nachricht.";
     const int n = count_lines(it, a.r32, s, W, 3);
@@ -370,7 +370,7 @@ inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
     const int h = (sign.empty() ? 0 : 40 + 14) + 96 + 14 + n * 48 + 14 + 64;
     int y = top + (height - h) / 2;
     if (!sign.empty()) {
-      text(it, a.r32, 270, y, 40, MID, TextAlign::TOP_CENTER, sign, W, 1);
+      text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, sign, W, 1);
       y += 54;
     }
     it.print(270, y, a.i96, INK, TextAlign::TOP_CENTER, icon::DOORBELL);
@@ -481,13 +481,14 @@ inline int older_page_first(int first) {
 inline void draw_bubble(Display &it, const aikos_call::Msg &m, int y) {
   const bool visitor = m.side == "door";
   const int h = bubble_h(m), x = visitor ? 24 : 516 - BUBBLE_W;
+  // text only black on white or white on black (the owner, 2026-10-04): the visitor framed white, the resident black
   if (visitor)
     frame(it, x, y, BUBBLE_W, h, 16, 3, INK, PAPER);
   else
-    fill_round(it, x, y, BUBBLE_W, h, 16, LIGHT);
-  text(it, a.m32, x + PAD, y + PAD, LABEL_H, visitor ? INK : INK, TextAlign::TOP_LEFT, aikos_call::label(m),
-       BUBBLE_W - 2 * PAD, 1);
-  text(it, a.r32, x + PAD, y + PAD + LABEL_H, LINE_H, INK, TextAlign::TOP_LEFT, m.text, BUBBLE_W - 2 * PAD, 6);
+    fill_round(it, x, y, BUBBLE_W, h, 16, INK);
+  const esphome::Color ink = visitor ? INK : PAPER;
+  text(it, a.m32, x + PAD, y + PAD, LABEL_H, ink, TextAlign::TOP_LEFT, aikos_call::label(m), BUBBLE_W - 2 * PAD, 1);
+  text(it, a.r32, x + PAD, y + PAD + LABEL_H, LINE_H, ink, TextAlign::TOP_LEFT, m.text, BUBBLE_W - 2 * PAD, 6);
 }
 
 inline void draw_call(Display &it) {
@@ -501,10 +502,11 @@ inline void draw_call(Display &it) {
   it.print(124, 74, w <= 372 ? a.b44 : a.m32, INK, TextAlign::CENTER_LEFT, status.c_str());
   // who listens inside (the owner: with names)
   const std::string ls = aikos_call::listeners();
-  text(it, a.r32, 24, 136, 40, MID, TextAlign::TOP_LEFT, ls.empty() ? std::string("Mikrofon an") : ls, 492, 1);
+  text(it, a.r32, 24, 136, 40, INK, TextAlign::TOP_LEFT, ls.empty() ? std::string("Mikrofon an") : ls, 492, 1);
   // the chat
+  shown_placeholder = aikos_call::n_msgs == 0;
   if (aikos_call::n_msgs == 0) {
-    text(it, a.r32, 24, CHAT_TOP + 20, 40, MID, TextAlign::TOP_LEFT, "Hier erscheint das Gespräch als Text.", 492, 2);
+    text(it, a.r32, 24, CHAT_TOP + 20, 40, INK, TextAlign::TOP_LEFT, "Hier erscheint das Gespräch als Text.", 492, 2);
   } else {
     if (chat_first > 0) {
       wide_button(it, CHAT_TOP, PAGE_BTN_H, false, icon::UP, a.i48, a.m32, "Ältere", nullptr, OLDER, 2);
@@ -550,7 +552,7 @@ inline void draw_message(Display &it) {
   it.filled_circle(128, 790, 26, PAPER);
   it.print(176, 790, a.m40, PAPER, TextAlign::CENTER_LEFT, "Aufnahme starten");
   hit(24, 700, 492, 180, RECORD);
-  it.print(270, 900, a.r32, MID, TextAlign::TOP_CENTER, "Höchstens 1 Minute");
+  it.print(270, 900, a.r32, INK, TextAlign::TOP_CENTER, "Höchstens 1 Minute");
 }
 
 inline void draw_recording(Display &it) {
@@ -564,10 +566,10 @@ inline void draw_recording(Display &it) {
   char buf[16];  // elapsed in 5 s steps, like the bar
   snprintf(buf, sizeof buf, "%u:%02u", (unsigned) (done * 5 / 60), (unsigned) (done * 5 % 60));
   it.print(24, 180, a.r32, INK, TextAlign::TOP_LEFT, buf);
-  it.print(516, 180, a.r32, MID, TextAlign::TOP_RIGHT, "1:00");
-  it.print(24, 236, a.r32, MID, TextAlign::TOP_LEFT, "Erkannt:");
+  it.print(516, 180, a.r32, INK, TextAlign::TOP_RIGHT, "1:00");
+  it.print(24, 236, a.r32, INK, TextAlign::TOP_LEFT, "Erkannt:");
   frame(it, 24, 280, 492, 340, 18, 3, INK, PAPER);
-  text(it, a.r32, 48, 304, 42, MID, TextAlign::TOP_LEFT, "Das Mikrofon an der Tür kommt mit dem Sprechrechner.", 444, 3);
+  text(it, a.r32, 48, 304, 42, INK, TextAlign::TOP_LEFT, "Das Mikrofon an der Tür kommt mit dem Sprechrechner.", 444, 3);
   wide_button(it, 640, 160, true, icon::SEND, a.i64, a.m40, "Fertig, senden", nullptr, SEND);
   wide_button(it, 816, 96, false, icon::CLOSE, a.i48, a.m32, "Abbrechen", nullptr, CANCEL);
 }
@@ -577,7 +579,7 @@ inline void draw_sent(Display &it) {
   it.print(270, 380, a.b60, INK, TextAlign::TOP_CENTER, "Danke!");
   const int n = text(it, a.r40, 270, 470, 48, INK, TextAlign::TOP_CENTER,
                      sent_drawing ? "Ihr Bild ist angekommen." : "Ihre Nachricht ist angekommen.", 492, 2);
-  it.print(270, 470 + n * 48 + 40, a.r32, MID, TextAlign::TOP_CENTER, "Gleich wieder zum Start");
+  it.print(270, 470 + n * 48 + 40, a.r32, INK, TextAlign::TOP_CENTER, "Gleich wieder zum Start");
 }
 
 inline void draw_drawing(Display &it) {
@@ -607,7 +609,7 @@ inline void draw_friends(Display &it) {
     const int m = a.friends->get_size(), s = std::max(1, std::min(10, 280 / m));
     const int qy = 204 + n * 42 + 40;
     it.qr_code(270 - m * s / 2, qy, a.friends, INK, s);
-    it.print(270, qy + m * s + 40, a.r32, MID, TextAlign::TOP_CENTER, "[Link zur Freundesseite]");
+    it.print(270, qy + m * s + 40, a.r32, INK, TextAlign::TOP_CENTER, "[Link zur Freundesseite]");
   }
 }
 
@@ -746,7 +748,13 @@ inline void tick(uint32_t now) {
     const int first = chat_first - d;
     const bool same_top = first >= 0 && (first > 0) == (chat_first > 0);  // "Ältere" stays as it is
     if (view == CALL && chat_latest) {
-      if (aikos_call::appended && same_top && chat_fits(first, true)) {
+      if (shown_placeholder && aikos_call::n_msgs > 0) {
+        // the first bubble lands where the grey placeholder was: lightening grey without a flash leaves ghosts
+        // (bench 2026-09-29, rule 9), so the first bubble of a call is a page change with the short flash (the owner
+        // 2026-10-04); later bubbles only add ink and stay flash-free
+        chat_first = newest_page_first();
+        go(CALL, now, true);
+      } else if (aikos_call::appended && same_top && chat_fits(first, true)) {
         chat_first = first;
         changed();
       } else {

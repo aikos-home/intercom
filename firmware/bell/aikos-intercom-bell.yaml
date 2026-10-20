@@ -100,6 +100,17 @@ api:
   # Send every state change at once. The default 100 ms batch merges fast presses (storm ringing
   # showed 2 of 5 on/off pairs in HA) and adds up to 100 ms of delay.
   batch_delay: 0ms
+  actions:
+    # TEST: a press of the brass button without touching it (bench and remote tests). It holds the button state like a
+    # closed contact for hold_ms (30 ms to 10 s), so everything after the line sampling is the real path.
+    - action: test_press
+      variables:
+        hold_ms: int
+      then:
+        - lambda: |-
+            const int ms = std::max(30, std::min(static_cast<int>(hold_ms), 10000));
+            id(test_press_until) = (millis() + ms) | 1;
+            ESP_LOGI("bell", "test press: %d ms", ms);
 
 ota:
   - platform: esphome
