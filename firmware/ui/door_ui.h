@@ -104,6 +104,8 @@ inline uint32_t partials_since_flash = 0;
 inline bool message_on = false;        // "Nachricht hinterlassen" records: the talk computer keeps the door mic open
 inline bool ring_request = false;      // "Bei jemandem klingeln": a targeted ring for HA/aikos (KR-R4)
 inline std::string ring_request_target;  // "" = everyone in the house, else a name from the ring targets
+inline bool drawing_request = false;   // "Malen -> Senden": the picture goes to HA (ui/drawing_send.h)
+inline aikos_drawing::Drawing drawing_out;
 // the call page's chat: messages [chat_first, n) are on the screen; latest = it follows new messages
 inline int chat_first = 0;
 inline bool chat_latest = true, shown_answered = false, speak_request = false;
@@ -680,6 +682,9 @@ inline void act(int action, int arg, uint32_t now) {
       break;
     case SEND_DRAWING:
       sent_drawing = true;
+      drawing_out = aikos_drawing::encode(demo::canvas, demo::CSTRIDE, demo::CW, CANVAS_TOP, CANVAS_BOTTOM);
+      drawing_request = !drawing_out.rle.empty();
+      ESP_LOGI("ui", "drawing to send: %u bytes (scale %d)", (unsigned) drawing_out.rle.size(), drawing_out.scale);
       demo::canvas_clear();
       go(SENT, now);
       break;

@@ -26,6 +26,8 @@ What it does:
 - **Leave a message** (0.7.21): while the screen records ("Nachricht hinterlassen"), the door microphone is open as in a
   call, so the words reach the transcriber and the call log; the end of the recording ends the call unless a room key
   answered meanwhile.
+- **Speech output** (0.7.21): the Home Assistant action `allow_tts {host, ms}` lets one trusted source play at the door
+  for up to 60 s (RTP like a key), outside of calls too: the door part of a later `aikos.say`.
 - **No chime at the door:** the test gong plays only on the Home Assistant button "Test chime".
 
 Flash over the board's port labelled "USB" (native USB, logs too); a factory-fresh board needs BOOT + RST once.

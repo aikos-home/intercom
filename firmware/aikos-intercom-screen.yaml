@@ -34,6 +34,7 @@ esphome:
     - talk/talk_page.h
     - ring/ring_path.h
     - call/call_page.h     # voice v2: the call as the screen shows it
+    - ui/drawing_send.h    # "Malen -> Senden": the picture as run lengths for HA (0.7.15)
     - ui/door_ui.h
   on_boot:
     - priority: 600
@@ -196,6 +197,13 @@ interval:
           // "Nachricht hinterlassen": the recording state straight to the talk computer, resent every second
           if (id(message_held).state != door_ui::message_on)
             id(message_held).publish_state(door_ui::message_on);
+          // "Malen -> Senden": the visitor's picture to HA (ha-dev saves it as a PNG)
+          if (door_ui::drawing_request) {
+            door_ui::drawing_request = false;
+            const auto &d = door_ui::drawing_out;
+            id(send_drawing).execute(d.width, d.height, d.scale, d.rle);
+            door_ui::drawing_out.rle = std::string();   // the PSRAM copy is not needed any more
+          }
           // "Bei jemandem klingeln": HA/aikos ring the picked person's keys (KR-R4)
           if (door_ui::ring_request) {
             door_ui::ring_request = false;
@@ -242,6 +250,21 @@ interval:
           }
 
 script:
+  - id: send_drawing   # the visitor's picture (ui/drawing_send.h); the receiver decodes the run lengths
+    mode: queued
+    parameters:
+      w: int
+      h: int
+      scale: int
+      rle: string
+    then:
+      - homeassistant.event:
+          event: esphome.aikos_door_drawing
+          data:
+            width: !lambda return to_string(w);
+            height: !lambda return to_string(h);
+            scale: !lambda return to_string(scale);
+            rle: !lambda return rle;
   - id: send_targeted_ring   # KR-R4: HA (tuerstation.yaml / later aikos) rings the keys of `target` ("" = everyone)
     mode: queued
     parameters:

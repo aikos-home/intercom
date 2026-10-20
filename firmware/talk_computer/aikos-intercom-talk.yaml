@@ -137,6 +137,18 @@ api:
     - action: call_end
       then:
         - aikos_voice.end
+    # Speech output at the door (features/sprachausgabe.md §4/4a, 0.7.21): aikos allows one trusted source for a while,
+    # then streams the sentence as RTP like a key (L16, 16 kHz, UDP 5004). It plays outside of calls too and needs no
+    # held key; nothing else in the LAN is played. At most 60 s per allowance.
+    - action: allow_tts
+      variables:
+        host: string
+        ms: int
+      then:
+        - lambda: |-
+            const uint32_t d = (uint32_t) std::max(0, std::min(static_cast<int>(ms), 60000));
+            ESP_LOGI("talk", "speech source %s allowed for %u ms", host.c_str(), (unsigned) d);
+            id(voice).allow_source(host, d);
 
 # aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
 # confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own
