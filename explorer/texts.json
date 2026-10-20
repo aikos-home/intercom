@@ -628,14 +628,14 @@
       "en": {
         "label": "Radar",
         "what": "Senses whether someone stands in front of the door, through the grille. Planned: wake the screen and the light when someone comes.",
-        "specs": "HLK-LD2410C, 24 GHz, 5 V supply, UART at 3.3 V. In a spacer frame glued behind the grille block. Wired to the screen computer's edge row (VBUS, GND, RX, TX); firmware not written yet.",
+        "specs": "HLK-LD2410C, 24 GHz, 5 V supply, UART at 3.3 V. In a spacer frame glued behind the grille block. Wired to the screen computer's edge row (VBUS, GND, RX, TX = GPIO43/44); its firmware is written (screen 0.7.15) but not yet on the device.",
         "why": "A radar sees through plastic and a grille, needs no lens in the front, and detects a person standing still. No camera, ever.",
         "solder": ""
       },
       "de": {
         "label": "Radar",
         "what": "Erkennt durch das Gitter, ob jemand vor der Tür steht. Geplant: Bildschirm und Licht wecken, wenn jemand kommt.",
-        "specs": "HLK-LD2410C, 24 GHz, 5 V Versorgung, UART mit 3,3 V. In einem Abstandsrahmen hinter dem Gitterblock eingeklebt. An der Randreihe des Bildschirmrechners verdrahtet (VBUS, GND, RX, TX); Firmware noch nicht geschrieben.",
+        "specs": "HLK-LD2410C, 24 GHz, 5 V Versorgung, UART mit 3,3 V. In einem Abstandsrahmen hinter dem Gitterblock eingeklebt. An der Randreihe des Bildschirmrechners verdrahtet (VBUS, GND, RX, TX = GPIO43/44); seine Firmware ist geschrieben (Bildschirm 0.7.15), aber noch nicht auf dem Gerät.",
         "why": "Ein Radar sieht durch Kunststoff und Gitter, braucht keine Linse in der Front und erkennt auch eine stehende Person. Keine Kamera, niemals.",
         "solder": ""
       }
@@ -1281,11 +1281,11 @@
     "e_radar_lilygo": {
       "en": {
         "label": "Radar data",
-        "carries": "The radar's serial line (TX to the screen's RX, RX to its TX). Firmware still to come: these holes are the chip's UART0, which still carries the screen's log."
+        "carries": "The radar's serial line: its TX to the screen's RX, its RX to the screen's TX (GPIO43/44). The screen logs over USB, so these pins are free for the radar."
       },
       "de": {
         "label": "Radardaten",
-        "carries": "Die serielle Leitung des Radars (TX an RX des Bildschirms, RX an TX). Firmware kommt noch: diese Löcher sind UART0 des Chips, über den noch das Log des Bildschirms läuft."
+        "carries": "Die serielle Leitung des Radars: sein TX an RX des Bildschirms, sein RX an dessen TX (GPIO43/44). Der Bildschirm loggt über USB, die Pins sind also frei für das Radar."
       }
     },
     "e_wt32_ws_watch": {
@@ -1887,12 +1887,8 @@
       "de": "Heizungsschalter: ein Logic-Level-MOSFET auf der Verteilerplatine und die Heizungsregelung in der Firmware des Klingelrechners."
     },
     {
-      "en": "Climate sensors: their firmware is written but not yet on the device; the first readings from the box are still to come.",
-      "de": "Klimasensoren: Ihre Firmware ist geschrieben, aber noch nicht auf dem Gerät; die ersten Werte aus dem Kasten stehen noch aus."
-    },
-    {
-      "en": "Radar: wired to the screen computer; the firmware is still to come (the screen's log has to move off the radar's serial pins first).",
-      "de": "Radar: am Bildschirmrechner verdrahtet; die Firmware kommt noch (das Log des Bildschirms muss erst von den seriellen Pins des Radars weg)."
+      "en": "Firmware written but not yet on the devices: the climate sensors with a dew point (doorbell computer), the radar (screen), leaving a message (talk computer).",
+      "de": "Firmware geschrieben, aber noch nicht auf den Geräten: die Klimasensoren mit Taupunkt (Klingelrechner), das Radar (Bildschirm), Nachricht hinterlassen (Sprechrechner)."
     },
     {
       "en": "Light: which COB strip, the level shifter on the distribution board, and the cable through the front.",
@@ -2001,8 +1997,8 @@
           "t_s3": "Talk between the door and a room key, with transcripts on the screen",
           "t_s4": "Duplex settled: the door arbitrates, its microphone is muted toward the keys while its speaker plays",
           "t_s5": "One cable and the power rail: 4.82 W in the box, 9.37 W with the heater on the bench",
-          "t_sens": "Climate sensors in the firmware (written), the heater control and its switch",
-          "t_radar": "Radar in the screen firmware; light under the roof",
+          "t_sens": "Climate sensors and dew point in the firmware (written), the heater control and its switch",
+          "t_radar": "Radar in the screen firmware (written); light under the roof",
           "t_audio": "Lock in: which extra audio features (voice messages, push-to-talk into the house)",
           "t_ux": "UX until release quality: screen pages, light, sounds"
         }
@@ -2017,8 +2013,8 @@
           "t_s3": "Sprechen zwischen Tür und Raumschlüssel, mit Mitschrift auf dem Bildschirm",
           "t_s4": "Duplex geklärt: Die Tür entscheidet, ihr Mikrofon ist zu den Schlüsseln hin stumm, solange ihr Lautsprecher spielt",
           "t_s5": "Ein Kabel und die Stromschiene: 4,82 W im Kasten, 9,37 W mit Heizung auf dem Labortisch",
-          "t_sens": "Klimasensoren in der Firmware (geschrieben), die Heizungsregelung und ihr Schalter",
-          "t_radar": "Radar in der Bildschirm-Firmware; Licht unter dem Dach",
+          "t_sens": "Klimasensoren und Taupunkt in der Firmware (geschrieben), die Heizungsregelung und ihr Schalter",
+          "t_radar": "Radar in der Bildschirm-Firmware (geschrieben); Licht unter dem Dach",
           "t_audio": "Festlegen: welche Audio-Extras (Sprachnachrichten, Push-to-Talk ins Haus)",
           "t_ux": "UX bis Release-Qualität: Bildschirmseiten, Licht, Töne"
         }

@@ -58,7 +58,7 @@ spannt für die anderen beiden ein eigenes WLAN auf und verbindet es mit dem Hau
 |---|---|---|---|
 | Klingel | Waveshare ESP32-S3-ETH + PoE Module (B) | Kabel | Klingelleitung, Klimasensoren, WLAN und 5 V für den Kasten; später Heizung und Licht |
 | Sprechen | ESP32-S3-N16R8-Entwicklerplatine („HW678“) | WLAN | Mikrofon, Verstärker, Gespräche |
-| Bildschirm | LilyGO T5-4.7-S3 Touch | WLAN | E-Paper-Touchscreen; später das Radar |
+| Bildschirm | LilyGO T5-4.7-S3 Touch | WLAN | E-Paper-Touchscreen, Anwesenheits-Radar |
 
 Die Klingel läuft auf einer eigenen Platine. Ein Absturz oder ein Update im Audiocode kann sie deshalb nie stumm
 schalten. Details, Strom, Winterheizung und Kasten stehen in [docs/architecture.md](docs/architecture.md) (Englisch).

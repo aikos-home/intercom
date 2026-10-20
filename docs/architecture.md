@@ -30,7 +30,7 @@ joint and solder spot, and walks through what happens on a ring, in winter, at d
 |---|---|---|---|
 | Doorbell computer | Waveshare ESP32-S3-ETH (W5500) with its plug-on PoE Module (B) | wired | button line, climate sensors, Wi-Fi "aikos", 5 V for the box; later the heater and the light |
 | Talk computer | ESP32-S3-N16R8 dev board ("HW678") | Wi-Fi "aikos" | microphone, amplifier, two-way talk |
-| Screen computer | LilyGO T5-4.7-S3 Touch (H716) | Wi-Fi "aikos" | 4.7" e-paper touch screen behind the window; later the radar |
+| Screen computer | LilyGO T5-4.7-S3 Touch (H716) | Wi-Fi "aikos" | 4.7" e-paper touch screen behind the window, presence radar |
 
 Why three and not one: the bell is the one function that must never fail. A crash or an update in the audio code
 cannot take it down when it runs on its own board. The e-paper panel is a parallel panel that needs its own driver
@@ -137,5 +137,6 @@ Drawings, STL files and the print and assembly guide: [`hardware/`](../hardware/
 
 ## Open points
 
-The light under the roof (COB strip and level shifter), the heater switch and its firmware, the radar firmware, the
-service USB ports, a cold start in frost, a water test, and the metal front. The roadmap: [roadmap.md](roadmap.md).
+Firmware that is written but not yet on the devices (climate sensors and dew point, the radar, leaving a message),
+the light under the roof (COB strip and level shifter), the heater switch and its control, the service USB ports, a
+cold start in frost, a water test, and the metal front. The roadmap: [roadmap.md](roadmap.md).

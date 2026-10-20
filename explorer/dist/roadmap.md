@@ -66,8 +66,8 @@ Needs: M1 All hardware on the table
 - [x] Talk between the door and a room key, with transcripts on the screen
 - [x] Duplex settled: the door arbitrates, its microphone is muted toward the keys while its speaker plays
 - [x] One cable and the power rail: 4.82 W in the box, 9.37 W with the heater on the bench
-- [~] Climate sensors in the firmware (written), the heater control and its switch
-- [ ] Radar in the screen firmware; light under the roof
+- [~] Climate sensors and dew point in the firmware (written), the heater control and its switch
+- [~] Radar in the screen firmware (written); light under the roof
 - [ ] ◆ Lock in: which extra audio features (voice messages, push-to-talk into the house)
 - [~] UX until release quality: screen pages, light, sounds
 

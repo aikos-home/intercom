@@ -59,7 +59,7 @@ fallback if the module ever fails in frost.
 |---|---|---|---|
 | 1 | SHT31-D module | outdoor temperature and humidity, in its own chamber | measured 13.22 × 10.5 mm, hole Ø3; I²C 0x44 |
 | 1 | BME280 module (GY-BME280, 6 pins) | temperature, humidity and pressure of the box air, on the distribution board | many "BMP280" boards look the same and have no humidity: check the chip ID (0x60) |
-| 1 | HLK-LD2410C 24 GHz radar module | presence in front of the door, behind the grille | 5 V, UART at 3.3 V, to the screen computer; **firmware later** |
+| 1 | HLK-LD2410C 24 GHz radar module | presence in front of the door, behind the grille | 5 V, UART at 3.3 V, to the screen computer (GPIO43/44); firmware written, not yet on the device |
 
 ## Heater and light
 

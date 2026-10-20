@@ -11,7 +11,7 @@ Wi-Fi "aikos" for the screen and the talk computer and bridges it into the LAN. 
 | [`bell-core.yaml`](bell-core.yaml) | The bell logic, the same on every board: line sampling, press detection, line supervision, diagnostics |
 | [`aikos-intercom-bell.yaml`](aikos-intercom-bell.yaml) | The board file: Waveshare ESP32-S3-ETH (W5500 Ethernet, PoE via its plug-on module), direct ring targets, self-healing, supervision wires to the talk computer |
 | [`aikos-intercom-bell-aptest.yaml`](aikos-intercom-bell-aptest.yaml) | + an access point (bench step, kept as the base of the next file) |
-| [`aikos-intercom-bell-bridge.yaml`](aikos-intercom-bell-bridge.yaml) | **What runs at the door:** + Wi-Fi "aikos" bridged into the LAN (`eth_wifi_bridge`) |
+| [`aikos-intercom-bell-bridge.yaml`](aikos-intercom-bell-bridge.yaml) | **What runs at the door:** + Wi-Fi "aikos" bridged into the LAN (`eth_wifi_bridge`), + the two climate sensors (I²C) and the box's dew point |
 | [`aikos-intercom-bell-bridge-diag.yaml`](aikos-intercom-bell-bridge-diag.yaml) | The same with a core dump on crash and test actions, for the bench |
 | [`aikos-intercom-bell-safe.yaml`](aikos-intercom-bell-safe.yaml) | The SAFE firmware in the factory partition (see below) |
 | [`partitions-bell.csv`](partitions-bell.csv) | Flash layout: factory 3 MB (safe firmware) + two 6 MB OTA slots |
@@ -59,6 +59,28 @@ sends values as 32-bit floats, so larger integers would arrive rounded), `presse
 `ringing` (on while the button is held, off on release or after the adjustable maximum duration: holding rings one
 continuous gong, like a school bell). A key rings once per new `(boot_id, presses)`, whichever path delivers it first.
 
+## Climate sensors
+
+Since 0.3.23 (written in October 2026, not yet on the device). One I²C bus at 100 kHz runs over the distribution
+board: header pin 34 (GPIO17) is SDA, pin 31 (GPIO18) is SCL, 3.3 V comes from pin 36. Both modules bring their own
+pull-ups.
+
+| Sensor | Where | Address | Entities, every 60 s |
+|---|---|---|---|
+| SHT31-D | its own chamber at the bottom of the box, open to the outdoor air | 0x44 (ADR open) | Outdoor temperature, Outdoor humidity |
+| BME280 (GY-BME280 module) | on the distribution board, in the box air | 0x76 (CSB and SDO open) | Box temperature, Box humidity, Air pressure |
+
+From the box values the bell computes the **Box dew point** (Magnus formula) and the **Box dew point margin**, how
+far the box is above it. The bus scan at boot logs what answers. The sensors live in the bridge file only: the
+WT32-ETH01 file needs GPIO17 for its Ethernet. The heater (not connected yet) will be driven from these numbers: on
+when the box gets cold or close to the dew point, off during calls.
+
+## Test press
+
+The API action `test_press(hold_ms)` holds the button state like a closed contact for 30 ms to 10 s. Everything after
+the line sampling runs exactly as for a real press: filters, counter, direct ring path, Home Assistant event. It makes
+the whole ring path testable from a script, without touching the button.
+
 ## The supervised line
 
 ```
@@ -93,6 +115,9 @@ Each of these cost presses before it was fixed:
   loose wire now reads as a cut cable.
 - **A half-closed brass contact hovers between 0.6 and 0.9 V** and was counted twice. Hysteresis: a
   press starts below 1.30 V and ends only above 1.60 V.
+- **A brass contact opens for 29–48 ms inside one firm press** (filmed on 4 October 2026). A press therefore ends only
+  after the line has stayed released for 60 ms (`delayed_off`, since 0.3.22); real storm presses were at least 68 ms
+  apart.
 - **A median filter hid very short contacts.** It is gone; the 100 nF on the line smooths enough. The
   line is sampled every millisecond (diagnostic *Line samples per second*, about 980).
 

@@ -158,8 +158,9 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **First power-on in the box (20 October):** all three computers came up and joined the network, the button line
   idled at 1.99 V (2.02 V on the bench), two presses reached the screen over both paths, the supervision wires reset
   nobody, the microphone delivered audio, and a tone sweep and a spoken message played clean through the speaker.
-- Still open in the box: the firmware for the two climate sensors (written) and the radar, the heater switch, the
-  light under the roof and the service USB ports.
+- Written for the box but not yet on the devices: the two climate sensors with the box's dew point (doorbell
+  computer), the radar (screen), and leaving a message (talk computer). Still open: the heater switch, the light under
+  the roof and the service USB ports.
 
 ## Next
 

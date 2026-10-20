@@ -1,6 +1,6 @@
 {
   "state": "2026-10-20",
-  "_about": "Structure of the Klingelbox explorer, state 2026-10-20: the as-built prototype in the printed v3 box (first power-on in the box on 20 Oct 2026). One PoE cable into the box; the doorbell computer (Waveshare ESP32-S3-ETH, node id 'wt32' for history) carries the plug-on PoE Module (B), which feeds the 5 V of the whole box, and runs the Wi-Fi 'aikos' for the talk computer (HW678, node id 'waveshare') and the screen. No splitter, no 12 V. Climate: SHT31-D outdoor chamber + BME280 on the distribution board. Talk: aikos_voice between the door and the RoomKeys, transcripts on the screen. Planned: heater switch, COB light, radar firmware, service USB.",
+  "_about": "Structure of the Klingelbox explorer, state 2026-10-20: the as-built prototype in the printed v3 box (first power-on in the box on 20 Oct 2026). One PoE cable into the box; the doorbell computer (Waveshare ESP32-S3-ETH, node id 'wt32' for history) carries the plug-on PoE Module (B), which feeds the 5 V of the whole box, and runs the Wi-Fi 'aikos' for the talk computer (HW678, node id 'waveshare') and the screen. No splitter, no 12 V. Climate: SHT31-D outdoor chamber + BME280 on the distribution board. Talk: aikos_voice between the door and the RoomKeys, transcripts on the screen. Written, not yet on the devices: climate + dew point (bell 0.3.23), radar (screen 0.7.15). Planned: heater switch, COB light, service USB.",
   "zones": [
     {
       "id": "internet",
@@ -383,7 +383,7 @@
       "zone": "box",
       "status": "in_hand",
       "name": "Radar",
-      "hint": "HLK-LD2410C 24 GHz radar in a glued frame behind the grille; 5 V and UART to the screen computer. Firmware to come (the screen's UART0 still carries its log)."
+      "hint": "HLK-LD2410C 24 GHz radar in a glued frame behind the grille; 5 V and UART to the screen computer (GPIO43/44). Firmware written in screen 0.7.15, not yet on the device."
     },
     {
       "id": "roomkeys",
@@ -959,7 +959,7 @@
       "layer": "gpio",
       "method": "solder",
       "decided": true,
-      "hint": "Radar UART (TX/RX, 3.3 V) to the screen computer's RX/TX holes; firmware to come."
+      "hint": "Radar UART (TX/RX, 3.3 V) to the screen computer's RX/TX holes (GPIO43/44)."
     },
     {
       "id": "e_wt32_ws_watch",
@@ -1597,8 +1597,7 @@
   ],
   "pending": [
     "Heater switch: a logic-level MOSFET on the distribution board, and the heater control in the doorbell computer's firmware.",
-    "Climate sensors: firmware 0.3.23 written, not yet on the device; first readings from the box pending.",
-    "Radar: wired to the screen computer; firmware pending (the log has to leave UART0 first).",
+    "Firmware written but not yet on the devices: bell 0.3.23 (climate sensors, dew point), screen 0.7.15 (radar), talk 0.7.21.",
     "Light: COB strip type, the level shifter on the distribution board, and the cable through the front.",
     "Service USB: three data-only breakouts in the bottom, not wired yet; the firmware must keep USB alive and pause the supervision while flashing.",
     "PoE module in frost: no published temperature range, a cold start was not tested; the industrial splitter is the fallback.",
@@ -1736,7 +1735,7 @@
         },
         {
           "id": "t_radar",
-          "status": "open",
+          "status": "doing",
           "node": "radar"
         },
         {

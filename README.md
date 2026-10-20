@@ -57,7 +57,7 @@ a Wi-Fi of its own for the other two and bridges it into the house network.
 |---|---|---|---|
 | Doorbell | Waveshare ESP32-S3-ETH + PoE Module (B) | wired | button line, climate sensors, Wi-Fi and 5 V for the box; later heater and light |
 | Talk | ESP32-S3-N16R8 dev board ("HW678") | Wi-Fi | microphone, amplifier, calls |
-| Screen | LilyGO T5-4.7-S3 Touch | Wi-Fi | e-paper touch screen; later the radar |
+| Screen | LilyGO T5-4.7-S3 Touch | Wi-Fi | e-paper touch screen, presence radar |
 
 The bell runs on its own board, so a crash or an update in the audio code can never silence it. Details, power,
 the winter heater and the box: [docs/architecture.md](docs/architecture.md).
