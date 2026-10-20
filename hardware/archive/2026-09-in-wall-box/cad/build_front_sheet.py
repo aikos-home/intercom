@@ -1,4 +1,4 @@
-"""Build the front sheet from ../front-sheet/layout-v5-bemasst.svg (engraving included).
+"""Build the front sheet from ../../../front-sheet/layout-v5-bemasst.svg (engraving included).
 
 Run with FreeCAD's command-line interpreter from this folder:
     freecadcmd build_front_sheet.py

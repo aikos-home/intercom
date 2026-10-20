@@ -1,11 +1,11 @@
 """Klingel v5 - Frontblech (Front + Dach, EIN gekantetes Blech, 2 mm).
 
 Run inside FreeCAD (MCP), in zwei Schritten - Dokument und Ansicht NUR im GUI-Thread:
-    exec(open(r"C:\\AI_Projects\\Intercom\\cad\\make_sheet_v5.py", encoding="utf-8").read())
+    exec(open(r"hardware/archive/2026-09-in-wall-box/cad/make_sheet_v5.py", encoding="utf-8").read())
     build_shape()   # schwere OCCT-Booleans, kein Dokument, kein GUI
     assemble()      # Dokument, Farbe, Ansicht, Export
 
-Masse aus ../front-sheet/make_layout_v5.py bzw. layout-v5-bemasst.svg.
+Masse aus hardware/front-sheet/make_layout_v5.py bzw. layout-v5-bemasst.svg.
 Gemeinsame Masse mit dem Kasten kommen aus kasten_v3_params.py - keine zweite Kopie mehr.
 
 Zeichnung: x nach rechts, y nach UNTEN, Ursprung = linke obere Ecke der Front.
@@ -55,7 +55,7 @@ _w0 = LED_OFF + SLIT_W + GAP
 WINS = [(_w0, _w0 + WIN_W), (_w0 + WIN_W + WEB, _w0 + 2 * WIN_W + WEB)]
 
 ENGRAVE_DEPTH = 0.3
-SVG = os.path.join(HERE, "..", "front-sheet", "layout-v5-bemasst.svg")
+SVG = os.path.join(HERE, "..", "..", "..", "front-sheet", "layout-v5-bemasst.svg")
 OUT = os.path.join(HERE, "out")
 BREP = os.path.join(OUT, "_frontblech_v5.brep")
 SIDE = -1.0                                # Tiefenrichtung: vor der Wand = -Y

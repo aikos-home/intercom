@@ -1,6 +1,6 @@
 """Klingel v5 - ABS/ASA-Kasten v3. Geometrie AUSSCHLIESSLICH aus kasten_v3_params.py.
 
-    exec(open(r"C:\\AI_Projects\\Intercom\\cad\\make_kasten_v3.py", encoding="utf-8").read())
+    exec(open(r"hardware/archive/2026-09-in-wall-box/cad/make_kasten_v3.py", encoding="utf-8").read())
     build_box(); build_plate(); check_cad(); export_print(); export_testprint()
     assemble()          # nur im GUI-Thread
 

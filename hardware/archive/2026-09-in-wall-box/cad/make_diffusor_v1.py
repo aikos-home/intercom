@@ -15,7 +15,7 @@ ZWEI KORREKTUREN GEGENUEBER DER ZEICHNUNG:
 
 Achsen wie beim Blech: X = Zeichnungs-x, Z = -Zeichnungs-y, Y = -xs (Blechvorderseite Y = -2).
 
-    exec(open(r"C:\\AI_Projects\\Intercom\\cad\\make_diffusor_v1.py", encoding="utf-8").read())
+    exec(open(r"hardware/archive/2026-09-in-wall-box/cad/make_diffusor_v1.py", encoding="utf-8").read())
     build(); check(); export_print()      # headless
     assemble()                            # nur im GUI-Thread
 """
