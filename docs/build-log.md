@@ -81,6 +81,8 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** e-paper must be driven balanced. A test animation that lightened pixels more than it had
   darkened them left a faint ring after about a hundred frames that even a flash did not remove at once.
 
+## 30 September – 4 October: three computers on one cable
+
 - The doorbell computer moved boards. The WT32-ETH01 booted once, then always started in download
   mode: its IO0 is both the boot-mode pin and the Ethernet clock input, and the oscillator holds it
   low. Pull-ups of 10 kΩ and 1 kΩ did not win, and a doorbell must restart on its own after a power
@@ -119,6 +121,45 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** moving a wire with the power on took the talk computer off the network until a power cycle, and two days
   earlier a live re-plug of the 5 V jumpers killed a board. Power off first, every time.
 - Power at the switch port with everything idle: 4.13 W, of which the screen takes about 1.75 W.
+
+## 4–14 October: tested end to end, and a heater on the PoE cable
+
+- A test press without touching the button (an API action that holds the button state like a closed contact) made the
+  whole ring path testable from a script. Storm ringing, 20 presses in 2.7 s: 20 of 20 at the doorbell computer, in
+  Home Assistant and on the screen, over both of its paths. From the press to the drawn ring page: 1.4 s, 1.1 s of it
+  the page-change flash.
+- Door speech reached the screen as text 4 s after the visitor paused, but up to 21 s when the transcriber found no
+  pause in the room noise. The transcriber's pause detection and echo cut were reworked on its side.
+- The first chat bubble of a call flashes once: drawn without a flash over the grey placeholder, it left a ghost.
+- **A fixed rule for the screen:** text is black on white or white on black, never on grey and never grey.
+- The heater pad (5 V, about 5 W) ran on the doorbell computer's plug-on PoE module, together with everything else:
+  **9.37 W** at the switch port, the 5 V rail at 4.8 V under load (5.0 V without), the module barely warm, no restart
+  during seven rounds of calls with screen flashes and full-level gongs. So the one PoE cable carries the heater, and
+  the industrial splitter is not needed for the load.
+- Not tested: a cold start in frost. The module has no published temperature range. The riskiest moment is a start
+  after a long power cut in frost; once running, the box heats itself. The fallback is the industrial splitter.
+- **Lesson:** the heater's thin leads made no contact in a lever clamp, even with ferrules. Crimp thin leads onto a
+  thicker wire before any clamp.
+- **Lesson:** a firmware update that never got marked as good rolled back silently at the next restart: the 60 ms
+  debounce of version 0.3.22 was never active. Check the running version after every update.
+- The first doorbell (the ESP32 indoors from August) was retired.
+
+## 12–20 October: the v3 box, wired inside
+
+- The box went through versions v3.0 to v3.7 within a few days, each change a measured finding from the printed part:
+  [`hardware/`](../hardware/). It is surface-mounted on the solid wooden door frame and 60 mm deep. The doorbell and
+  talk computers share one carrier that slides out downwards, the display sits on a carrier plate held by two tongues
+  and two screws, and the climate sensor for outdoor air has its own chamber.
+- All wiring inside the box is soldered, with 10–15 cm of reserve in every wire so the parts can move to the next box
+  without cutting anything. A small perfboard distributes 5 V, 3.3 V and ground and carries the button-line circuit and
+  the box's climate sensor. Pin by pin: [`firmware/WIRING.md`](../firmware/WIRING.md).
+- **Lesson:** a single stray strand at the climate sensor shorted 3.3 V to ground. The beep test found it before
+  the power did.
+- **First power-on in the box (20 October):** all three computers came up and joined the network, the button line
+  idled at 1.99 V (2.02 V on the bench), two presses reached the screen over both paths, the supervision wires reset
+  nobody, the microphone delivered audio, and a tone sweep and a spoken message played clean through the speaker.
+- Still open in the box: the firmware for the two climate sensors (written) and the radar, the heater switch, the
+  light under the roof and the service USB ports.
 
 ## Next
 

@@ -1,12 +1,13 @@
 # Klingelbox
 
-**An open-hardware door intercom: a brass front flush in the facade, an e-paper touch screen,
-two-way talk, and one PoE cable. Built on ESP32, ESPHome and Home Assistant. No camera, ever.**
+**An open-hardware door intercom: a brass front beside the door, an e-paper touch screen,
+two-way talk with the rooms, and one PoE cable. Built on ESP32, ESPHome and Home Assistant. No camera, ever.**
 
 [Deutsch](README.de.md)
 
-> Status: prototype. The parts are on the bench, the front and the box exist as 3D-printed
-> prototypes. Nothing is installed at a door yet. State of this page: 24 September 2026.
+> Status: prototype. All electronics are soldered into the printed v3 box and have run in it since
+> 20 October 2026, on the desk. The metal front is not ordered yet, and nothing is installed at a door.
+> State of this page: 20 October 2026.
 
 <p align="center">
   <img src="docs/images/intercom-render.jpg" width="330" alt="AI-generated concept render: a brushed brass door plate with a folded rain roof and a warm light band under it, a slotted speaker grille, a portrait e-paper screen saying Hallo! Bitte klingeln. with a QR code, engraved placeholder names and a round brass button">
@@ -28,13 +29,14 @@ two-way talk, and one PoE cable. Built on ESP32, ESPHome and Home Assistant. No 
   ring reaches the phone before anything else happens at the door.
 - **A screen at the door.** A 4.7" e-paper touch screen behind a window in the brass: greetings,
   notices, a QR code. It keeps its image without power and stays readable in sunlight.
-- **Talk.** A microphone and a speaker behind the brass for two-way conversation, relayed
-  through Home Assistant to a phone. Planned: voice messages and push-to-talk into the house.
+- **Talk.** A microphone and a speaker behind the brass for two-way conversation with the
+  [RoomKey](https://github.com/aikos-home/roomkey) touch keys in the rooms, and a live transcript of both
+  sides on the door screen. Planned: voice messages and push-to-talk into the house.
 - **One cable.** Data and power arrive over a single outdoor PoE cable. No power supply at the
   door, no switch in the box.
 - **Local.** Everything runs on ESPHome and Home Assistant at home.
 - **Private by design.** No camera. The microphone only opens after a visitor presses
-  something, and the screen says so.
+  something or someone indoors holds a room key, and the screen says so. Nothing is recorded.
 
 ## Explore it
 
@@ -48,16 +50,17 @@ a browser. A hosted version is planned.
 
 ## How it works
 
-Three small computers share one cable and one 5 V rail, and nothing else:
+Three small computers share one cable and one 5 V rail. The doorbell computer is the only wired one; it runs
+a Wi-Fi of its own for the other two and bridges it into the house network.
 
 | Computer | Board | Link | Job |
 |---|---|---|---|
-| Doorbell | Waveshare ESP32-S3-ETH (PoE module) | wired | button line, light, heater, climate sensor |
-| Talk | open: an ESP32-S3 with PSRAM | WiFi | microphone, amplifier, calls |
-| Screen | LilyGO T5-4.7-S3 Touch | WiFi | e-paper touch screen |
+| Doorbell | Waveshare ESP32-S3-ETH + PoE Module (B) | wired | button line, climate sensors, Wi-Fi and 5 V for the box; later heater and light |
+| Talk | ESP32-S3-N16R8 dev board ("HW678") | Wi-Fi | microphone, amplifier, calls |
+| Screen | LilyGO T5-4.7-S3 Touch | Wi-Fi | e-paper touch screen; later the radar |
 
-The bell runs on its own board with stock ESPHome only, so a crash or an update in the audio code
-can never silence it. Details, power budget and the winter heater: [docs/architecture.md](docs/architecture.md).
+The bell runs on its own board, so a crash or an update in the audio code can never silence it. Details, power,
+the winter heater and the box: [docs/architecture.md](docs/architecture.md).
 
 ## Repository
 
@@ -68,10 +71,10 @@ can never silence it. Details, power budget and the winter heater: [docs/archite
 | [`docs/roadmap.md`](docs/roadmap.md) | the milestones from parts on the desk to the door, and the decisions still to lock in |
 | [`docs/build-log.md`](docs/build-log.md) | what happened so far, including the dead ends |
 | [`docs/family-app.md`](docs/family-app.md) | the planned self-hosted app for the household |
-| [`hardware/`](hardware/) | front sheet, box and diffuser: generator scripts, STL and STEP, part drawings |
+| [`hardware/`](hardware/) | the v3 box with all its printed parts, the print and assembly guide, the front, part drawings |
 | [`explorer/`](explorer/) | the interactive map and its build |
 | [`firmware/`](firmware/) | ESPHome firmware for all three computers: [doorbell](firmware/bell/), [talk](firmware/talk_computer/), screen (fast refresh, demo) |
-| [`firmware/WIRING.md`](firmware/WIRING.md) | how the three computers are wired on the bench, pin by pin |
+| [`firmware/WIRING.md`](firmware/WIRING.md) | how everything is wired inside the box, wire by wire, with the soldering sheets |
 | [`docs/screen-ux.md`](docs/screen-ux.md) | what the door screen can and cannot show, tested on the panel |
 | [`tools/`](tools/) | the privacy scan that runs before every push, and bench test scripts |
 
@@ -83,6 +86,7 @@ The Home Assistant automations are not in this repo yet.
   for an electrician.
 - The e-paper panel is rated 0 to +50 °C. Outdoors it needs the heater, and the heater needs
   its thermal fuse.
+- Switch the PoE port off before touching any wire in the box.
 - Never plug a board's USB into a computer while the box's 5 V rail is live, unless the cable
   blocks power.
 
