@@ -1,181 +1,213 @@
-# Wiring: the three door computers on one PoE cable
+# Wiring: the door box, as built
 
-This is the wiring **as it runs on the bench on 4 October 2026**, not a plan. Each section says how it was
-checked. Wire colours are the bench jumpers, listed only to make the photos and the text match; use any colour.
+This is the wiring **as it was soldered into the printed v3 box between 16 and 20 October 2026**, not a plan. It
+replaces the breadboard wiring of 4 October (still in the git history of this file); the pins on the three computers
+did not change, only how they are connected. Each section says how it was checked.
 
-| Computer | Board | Firmware (4 Oct 2026) |
+The sheets the box was soldered from, in German, are in [`docs/wiring-sheets/`](../docs/wiring-sheets/):
+[round 1, the distribution board](../docs/wiring-sheets/kasten-runde1-verteiler.svg) and
+[round 2, the computer carrier](../docs/wiring-sheets/kasten-runde2-traeger.svg). Where the box differs from a sheet,
+this page says so.
+
+| Computer | Board | Firmware |
 |---|---|---|
-| **Bell** | Waveshare ESP32-S3-ETH + plug-on *PoE Module (B)* | `bell/aikos-intercom-bell-bridge.yaml` 0.3.20 |
-| **Talk computer** | ESP32-S3-N16R8 dev board, silkscreen "HW678" | `talk_computer/aikos-intercom-talk.yaml` 0.7.20 |
-| **Screen** | LilyGO T5-4.7-S3 Touch, board "Screen-4.7-S3 V2.4" | `aikos-intercom-screen.yaml` 0.7.12 |
+| **Bell** | Waveshare ESP32-S3-ETH + plug-on *PoE Module (B)* | `bell/aikos-intercom-bell-bridge.yaml` |
+| **Talk computer** | ESP32-S3-N16R8 dev board, silkscreen "HW678" | `talk_computer/aikos-intercom-talk.yaml` |
+| **Screen** | LilyGO T5-4.7-S3 Touch, board "Screen-4.7-S3 V2.4" | `aikos-intercom-screen.yaml` |
 
 ```
-switch port (PoE) ══ Ethernet ══ BELL (RJ45 + PoE module) ── 5 V + GND ──┬── talk computer (5Vin)
-                                     │  ↑ Wi-Fi "aikos"                    ├── amplifier (Vin) ── speaker
-                                     │  button line (breadboard)           └── screen (VBUS)
-                                     └── 4 supervision wires ── talk computer ── microphone
+switch port (PoE) ══ Ethernet ══ BELL (RJ45 + PoE module)
+                                   │ pin 40 VBUS, pin 33 GND ── distribution board ──┬── screen (VBUS) ── radar
+                                   │ pin 36 3V3, pin 25 button node, I2C 31/34 ──────┤── amplifier ── speaker
+                                   │                                                  ├── brass button (+ end-of-line 10 kΩ)
+                                   │                                                  └── SHT31 (outdoor chamber), BME280 (on the board)
+                                   ├── 5 V, GND and 4 supervision wires ── TALK COMPUTER ── microphone
+                                   │                                                    └── I2S ── amplifier
+                                   └── Wi-Fi "aikos" for the talk computer and the screen
 ```
-
-The bell is the only wired computer. The talk computer and the screen reach the network over the bell's own
-Wi-Fi ("aikos"), which the bell bridges into the LAN.
 
 ## Rules that broke boards or cost hours
 
-- **Power off before every wiring change:** switch the PoE port off (or pull USB), then change wires, then power
-  on. Moving a signal wire under power on 4 Oct 2026 took the talk computer off the network (its LED blinked)
-  until a power cycle; a live re-plug of the 5 V jumpers killed a talk board on 2 Oct 2026.
+- **Power off before every wiring change:** switch the PoE port off, then touch wires, then power on. Moving a signal
+  wire under power once took the talk computer off the network until a power cycle; a live re-plug of the 5 V
+  jumpers killed a talk board.
 - **Never USB and PoE at the same time** on the bell, the talk computer or the screen. They all hang on the same
   5 V rail, so a USB cable on any of them can feed the others backwards.
-- **No breadboard contacts in the box.** On 4 Oct 2026 two faults were loose breadboard or jumper contacts:
-  - the amplifier's GND had no contact: the sound was distorted on every speaker, and the amp's Vin read 4.4 V
-    instead of 5 V. Most likely its current went back through the input pins (the missing 0.6 V is one diode
-    drop). After re-seating, the GND beeped through and the sound was clean;
-  - the button line's 10 kΩ pull-up lost contact, so the line idled at 0.75 V instead of 2.02 V, which reads as
-    a held button ("Line shorted"), and the bell ignored presses.
+- **Nothing clamped, nothing plugged.** Two of the bench faults were loose breadboard contacts (an amplifier ground,
+  the button line's pull-up). In the box every joint is soldered.
+- **Beep-test before the first power-on.** A single stray strand at the BME280 shorted 3.3 V to ground; the beep test
+  found it, the power never saw it.
+- **Reserve in every wire.** The computer carrier slides 40 mm down and then out to the front, the display plate comes
+  out to the front, and the display comes off with the front sheet. Every wire has 10–15 cm more than its path needs,
+  so a part can be taken out, or moved to the next box, without cutting anything.
 
-  Solder or clamp everything that goes into the box, and run 5 V and GND over short, thick wires.
+Wires: power 5 V and GND in thick stranded wire, signals in thin stranded wire (the prototype uses 0.05 mm² for the
+signals; 0.14 mm² is easier to handle). Each wire carries a tape flag with its number at both ends.
 
-## 1. Power: one 5 V rail from the bell
+## 1. The distribution board
 
-Checked: the owner's description of the breadboard (3 Oct 2026); the talk computer's pins read out one by one
-(4 Oct 2026); continuity beeped from the amplifier's GND pin to the talk computer's GND pin (4 Oct 2026).
+A 30 × 70 mm perfboard with 10 × 24 plated holes, on a printed clip socket at the bottom of the box, components to the
+front. Columns A–J from the left, rows 1–24 from the top (the top points to the bell). Under the board there are only
+3 mm, so every lead is cut to 1 mm at the back.
 
-| From | To | Notes |
+**Rails and strips** (bare wire on the back, soldered at every hole):
+
+| Strip | Holes | Net |
 |---|---|---|
-| bell header pin 40 (VBUS) | breadboard **row 25** | 5.0 V when the bell runs on PoE |
-| bell header pin 33 (GND) | breadboard **row 27** | |
-| bell header pin 38 (GND) | talk computer **GND** (pin row with 3V3, last pin) | direct, grey |
-| row 25 | talk computer **5Vin** (second-to-last pin of the 3V3 row) | red. Works as an input without the board's IN-OUT solder bridge |
-| row 25 | amplifier **Vin** | red |
-| row 27 | amplifier **GND** | blue |
-| row 25 | screen **VBUS** (see section 5) | thick red, soldered at the screen |
-| row 27 | screen **GND** (see section 5) | thick black, soldered at the screen |
+| GND | A1–A24 | ground |
+| 5 V | B1–B7 | 5 V from the bell's PoE module |
+| 3V3 | J9–J24 | 3.3 V from the bell |
+| button node | E10–E13 | the bell's analog input |
+| button line | I13–I15 | toward the button |
+| SCL | F16–F20 | I²C clock |
+| SDA | G16–G20 | I²C data |
+| BME VCC | D19–D20 | |
+| BME GND | E18–E20 | |
 
-Draw at the switch port (UniFi): bell alone 1.17 W · bell + talk computer 1.59 W · plus microphone and amplifier
-idle 2.38 W · plus the screen **4.13 W**.
+**Parts:**
 
-## 2. Talk computer (HW678) pin by pin
-
-Read out by the owner, pin by pin, on 4 Oct 2026. The board has two pin rows; the labels are printed next to the pins.
-
-**Row with 3V3 · 3V3 · RST · 4 · 5 · 6 · 7 · 15 · 16 · 17 · 18 · 8 · 3 · 46 · 9 · 10 · 11 · 12 · 13 · 14 · 5Vin · GND**
-
-| Pin | Colour | Goes to |
+| Part | Holes | What |
 |---|---|---|
-| 3V3 | orange | microphone VDD |
-| RST | black | bell **GPIO40** (header pin 11): the bell can reset the talk computer |
-| 6 | black | microphone **SD** (data) |
-| 15 | purple | amplifier **BCLK** |
-| 16 | blue | amplifier **LRC** |
-| 17 | orange | amplifier **DIN** |
-| 18 | white | bell **GPIO38** (header pin 14): heartbeat of the talk computer |
-| 8 | yellow | bell **GPIO39** (header pin 12): heartbeat of the bell |
-| 9 | brown | bell **CHIP_UP** (header pin 30, printed "RUN"): the talk computer can reset the bell |
-| 5Vin | red | breadboard row 25 |
-| GND | grey | bell header pin 38 |
+| R1 10 kΩ | E11–J11 | pull-up of the button node |
+| C1 100 nF | E12–A12 | filter on the button node |
+| R2 1 kΩ | E13–I13 | series resistor toward the button |
+| BME280 (GY-BME280, 6 pins) | header in D20–I20: VCC, GND, SCL, SDA, CSB, SDO | chip to the front, the module hangs down over rows 21–24. CSB and SDO are soldered but connected to nothing (I²C address 0x76) |
+| bridge | D19 → J19, insulated, on the front | BME280 VCC to 3.3 V |
+| bridge | E18 → A18, insulated, on the front | BME280 GND to ground |
 
-Nothing on 4, 5, 7, 3 and **46** (strapping pin: keep it free).
+C1–J7 stay free for the heater switch and the LED level shifter.
 
-**Row with GND · TX · RX · 1 · 2 · 42 · 41 · 40 · 39 · 38 · 37 · 36 · 35 · 0 · 45 · 48 · 47 · 21 · 20 · 19 · GND · GND**
+**16 wires leave the board:**
 
-| Pin | Colour | Goes to |
+| # | Hole | Net | Length | Other end |
+|---|---|---|---|---|
+| 1 | A1 | GND | 30 cm, thick | bell header pin 33 (GND) |
+| 2 | B1 | 5 V | 30 cm, thick | bell header pin 40 (VBUS), together with wire 17 |
+| 3 | A3 | GND | 30 cm, thick | screen, edge-row hole 3 (GND) |
+| 4 | B3 | 5 V | 30 cm, thick | screen, edge-row hole 1 (VBUS) |
+| 5 | A5 | GND | 20 cm, thick | amplifier GND |
+| 6 | B5 | 5 V | 20 cm, thick | amplifier Vin |
+| 7 | J9 | 3V3 | 30 cm | bell header pin 36 (3V3) |
+| 8 | E10 | button node | 30 cm | bell header pin 25 (GPIO1) |
+| 9 | I15 | button line | 15 cm | button, one terminal |
+| 10 | A15 | GND | 15 cm | button, the other terminal |
+| 11 | F16 | SCL | 30 cm | bell header pin 31 (GPIO18) |
+| 12 | G16 | SDA | 30 cm | bell header pin 34 (GPIO17) |
+| 13 | J17 | 3V3 | 15 cm | SHT31 VIN |
+| 14 | A17 | GND | 15 cm | SHT31 GND |
+| 15 | F17 | SCL | 15 cm | SHT31 SCL |
+| 16 | G17 | SDA | 15 cm | SHT31 SDA |
+
+Differences from sheet 1: wires 5 and 6 are thick, wire 9 is yellow, and wires 7–16 are 0.05 mm² (the sheet says
+"nothing under 0.14").
+
+Checked on 17 October, without power, by beep test: no continuous beep between GND, 5 V and 3V3 or between SCL and
+SDA; every GND, 5 V, 3V3, SCL and SDA wire beeps through to its strip and to the BME280 pins; wires 13–16 beep
+through to the SHT31 pads.
+
+## 2. The computer carrier: bell ↔ talk computer
+
+The bell and the talk computer sit on one carrier, so the wires between them never move when the carrier slides out.
+Seen from the front: talk computer at the top left, bell at the right below it, all USB sockets pointing down. The
+bell's row with VBUS (pins 21–40) lies on the outside right, its row with pins 1–20 faces the talk computer.
+
+| # | Bell | Talk computer | What |
+|---|---|---|---|
+| 17 | pin 40 VBUS | 5Vin | 5 V, thick (shares pin 40 with wire 2) |
+| 18 | pin 13 GND | GND (last pin of the 3V3 row) | ground, thick |
+| 19 | pin 11 GPIO40 | RST | the bell can reset the talk computer |
+| 20 | pin 12 GPIO39 | 8 | the bell's heartbeat |
+| 21 | pin 14 GPIO38 | 18 | the talk computer's heartbeat |
+| 22 | pin 30 RUN (CHIP_UP) | 9 | the talk computer can reset the bell |
+
+The supervision logic is in `components/aikos_peer_guard`: each computer toggles its heartbeat pin once per second; if
+the other one's heartbeat stops for 30 s, it pulls the other's reset line low for 200 ms (at most 3 times an hour, never
+before it has seen a heartbeat, never in the first 2 minutes).
+
+⚠️ Bell pin 37 (3V3_EN) is **not** a reset: pulling it low switches the bell's 3.3 V off. Nothing on it, not even
+solder. Also free on the talk computer: 0, 45, 46 and 3 (strapping pins).
+
+The distribution wires land on the bell's outer row: 1 → pin 33, 2 → pin 40, 7 → pin 36, 8 → pin 25, 11 → pin 31,
+12 → pin 34.
+
+Checked on 20 October by beep test, all six; no continuous beep between VBUS, 3V3 and GND on either board.
+
+## 3. Talk computer → amplifier and microphone
+
+| # | Talk computer | Goes to |
 |---|---|---|
-| 1 | orange | microphone **SCK** |
-| 2 | purple | microphone **WS** |
-| GND (bottom) | grey | microphone **GND** |
-| GND (bottom) | grey | microphone **L/R** (low = left channel) |
+| 23 | 15 | amplifier BCLK |
+| 24 | 16 | amplifier LRC |
+| 25 | 17 | amplifier DIN |
+| 26 | 3V3 (top pin of the 3V3 row) | microphone VDD |
+| 27 | 6 | microphone SD |
+| 28 | 1 | microphone SCK |
+| 29 | 2 | microphone WS |
+| 30 | GND (TX row, second to last) | microphone GND |
 
-Nothing on 0 and 45 (strapping pins: a wire there can stop the board from booting).
+Lengths: 23–25 20 cm (the amplifier sits on the back of the display plate), 26–30 35 cm (the microphone sits at the
+bottom right of the front). Checked by beep test on 20 October, all eight.
 
-> The first wiring sheet had the microphone on GPIO 4 / 5 / 6. The box was wired SCK → 1, WS → 2 and SD → GND,
-> so the microphone delivered only silence. SD was moved to 6, and the firmware (0.7.19+) reads SCK on GPIO1 and
-> WS on GPIO2.
+**Microphone (INMP441):** VDD, GND, SD, SCK and WS from wires 26–30; L/R bridged to GND on the microphone itself (left
+channel, as in the firmware). The smooth side with the sound hole lies on the gasket in the mic pocket.
 
-## 3. Microphone (INMP441 module)
+**Amplifier (MAX98357A):** LRC, BCLK and DIN from wires 24, 23 and 25; GND and Vin from the distribution board (wires 5
+and 6); GAIN and SD free (9 dB, always on). The speaker (VISATON K 40 SQ, 8 Ω) hangs on the screw terminal over a
+twisted pair of about 20 cm.
 
-| Microphone | Talk computer |
+## 4. Button, climate chamber, screen, radar
+
+**Button:** wires 9 and 10 go into the button's two screw terminals. The 10 kΩ end-of-line resistor sits in the same
+terminals, one leg under each screw, with heat shrink over it. It has to sit at the button: anywhere else a cut wire
+would read as "idle".
+
+**SHT31:** wires 13–16 run through the cable hole of the chamber lid to the four pads VIN, GND, SCL, SDA. The board sits
+on the lid's pin with its print toward the lid; the lid is glued onto the chamber walls and its cable hole sealed with
+silicone. The chamber has three small openings to the outdoor air.
+
+**Screen (LilyGO T5-4.7-S3, board V2.4):** the board has an unpopulated 2 × 20 hole row along one long edge; the row
+right at the edge reads VBUS · VBUS · GND · RX · TX … (LilyGO schematic V2.4, connector P8).
+
+| Edge-row hole | Goes to |
 |---|---|
-| VDD | 3V3 |
-| GND | GND |
-| L/R | GND (left channel, as in the firmware) |
-| SD | GPIO6 |
-| SCK | GPIO1 |
-| WS | GPIO2 |
+| 1 · VBUS | wire 4 (5 V from the distribution board) |
+| 2 · VBUS | radar VCC (connected to hole 1 on the board) |
+| 3 · GND | wire 3 (GND from the distribution board) |
+| a GND hole of the row | radar GND |
+| RX | radar TX |
+| TX | radar RX |
 
-Checked on 4 Oct 2026: speech at about 30 cm reads around −16 dBFS, the room around −57 dBFS.
+Solder from the component side and cut flush on the other side: the e-paper glass lies there. The screen's own USB-C
+stays unplugged while PoE is on.
 
-## 4. Amplifier (MAX98357A breakout) and speaker
+**Radar (HLK-LD2410C):** in its glued frame behind the grille, four thin wires of about 30 cm to the screen as above;
+OUT stays free. It runs on 5 V, its UART on 3.3 V. **No firmware yet:** the screen's RX/TX holes are the chip's
+UART0, which the firmware still uses for its log; the log has to move to USB first.
 
-Read out by the owner on 4 Oct 2026, with the board's screw terminal at the top: from the left LRC, BCLK, DIN,
-GAIN, SD, GND, Vin. Each signal wire beeped from the talk computer's pin to the amplifier's pin.
+**Heater (5 V pad between the panel and its board):** **not connected.** Its leads are extended (crimped, not clamped),
+insulated at the ends and parked at the distribution board, until a logic-level MOSFET on the board (C1–J7) and the
+firmware that switches it exist.
 
-| Amplifier | Goes to |
+**Service USB (three breakouts in the bottom):** not wired yet. They get D+, D− and GND of one computer each, never
+VBUS, before they are potted.
+
+## 5. First power-on in the box (20 October 2026)
+
+Before: beep test without power, no continuous beep between bell VBUS and GND, bell 3V3 and GND, talk 5Vin and GND (the
+screen's VBUS against GND chirps briefly: its capacitors charging). The front sheet was off.
+
+After switching the PoE port on:
+
+| What | Result |
 |---|---|
-| LRC | talk computer GPIO16 |
-| BCLK | talk computer GPIO15 |
-| DIN | talk computer GPIO17 |
-| GAIN | free (9 dB) |
-| SD | free |
-| GND | breadboard row 27 |
-| Vin | breadboard row 25 (5 V) |
-| screw terminal + / − | speaker + / − (VISATON K 40 SQ, 8 Ω, 40 × 40 mm) |
+| Network | all three computers answer; the talk computer's Wi-Fi at −29 dBm |
+| Button line, idle | 1.99 V (bench: 2.02 V); "line cut" and "line shorted" both off |
+| Two presses | counted by the bell, received by the screen both directly and via Home Assistant |
+| Supervision wires | no reset in either direction |
+| Microphone | delivers audio, noise floor −54.9 dB |
+| Speaker | a tone sweep and a spoken message played clean |
+| Power at the switch port | 4.82 W (heater not connected) |
 
-The firmware plays a test gong only on demand (button "Test chime" in Home Assistant) at full level; speech is
-capped at −6 dB (`talk_computer/talk_volume.h`). The door itself never chimes.
-
-## 5. Screen (LilyGO T5-4.7-S3, board V2.4)
-
-Checked on 4 Oct 2026: labels read on the board, soldered, no short between the two wires (beep test), boots on
-PoE and joins "aikos" at −34 dBm.
-
-The board has an unpopulated 2 × 20 hole row at one long edge. Component side up, USB-C on the left: the row
-**right at the board edge** reads from the left **VBUS · VBUS · GND** · RX · TX … (LilyGO schematic V2.4,
-connector P8: pins 2 and 4 VBUS, pin 6 GND).
-
-| Hole (edge row, from the left) | Goes to |
-|---|---|
-| 1 · VBUS | thick red wire → breadboard row 25 |
-| 2 · VBUS | free (connected to hole 1 on the board) |
-| 3 · GND | thick black wire → breadboard row 27 |
-
-Solder the wires from the component side and cut them flush on the other side: the e-paper glass lies there.
-The screen's USB-C stays unplugged while PoE is on.
-
-## 6. Supervision wires between the bell and the talk computer
-
-Firmware: `components/aikos_peer_guard`. Each computer toggles a heartbeat pin once per second while it runs; if
-the other one's heartbeat stops for 30 s, it pulls the other's reset line low for 200 ms (at most 3 times an hour,
-never before it has seen a heartbeat, never in the first 2 minutes).
-
-| Wire | Bell | Talk computer |
-|---|---|---|
-| bell's heartbeat | GPIO39 (pin 12) → | GPIO8 |
-| talk's heartbeat | GPIO38 (pin 14) ← | GPIO18 |
-| reset the talk computer | GPIO40 (pin 11, open-drain) → | RST |
-| reset the bell | CHIP_UP (pin 30, printed "RUN") ← | GPIO9 (open-drain) |
-
-⚠️ Bell pin 37 (3V3_EN) is **not** the reset: pulling it low switches the bell's 3.3 V off. Never connect it.
-
-## 7. Bell: the button line
-
-Built on 30 Sep 2026 (second, small breadboard); not re-read pin by pin since. On 4 Oct 2026 the pull-up was
-re-seated and the line measured 2.02 V idle again. Full table: [`bell/PINOUT.md`](bell/PINOUT.md).
-
-| Breadboard | What |
-|---|---|
-| row 1 | bell 3V3 (pin 36) |
-| row 5 | bell GPIO1 (pin 25), the measured node |
-| row 8 | line toward the button |
-| row 10 | bell GND (pin 28) |
-| 1e–5e | 10 kΩ pull-up |
-| 5b–10b | 100 nF |
-| 5d–8d | 1 kΩ (stands in for the cable run) |
-| 8c–10c | 10 kΩ end-of-line (sits at the button in the real install) |
-| 8a, 10e | the brass button |
-
-| Line | Volts at GPIO1 |
-|---|---|
-| idle | 2.02–2.03 |
-| pressed | 0.34–0.47 |
-| cable cut | 3.18 |
-| idle at ≈ 0.7 | the 10 kΩ pull-up (or its 3V3 wire) has no contact: reads as a held button |
+Not measured yet in the box: the line voltage while pressed, the resistances of R1 and R2 as a number, the climate
+sensors (their firmware, bell 0.3.23, is written but not yet on the device), and a full call with a room key and the
+transcript.
