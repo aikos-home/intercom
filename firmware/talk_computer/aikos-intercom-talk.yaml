@@ -211,6 +211,9 @@ aikos_voice:
         state: !lambda 'return std::isnan(id(calls_ended).state) ? 1 : id(calls_ended).state + 1;'
 
 globals:
+  - id: message_since        # when the screen's message recording began (0 = none): the keep-alive below stops after 75 s
+    type: uint32_t
+    initial_value: "0"
   - id: key_hosts            # key node name → its address, from "Key addresses"
     type: std::map<std::string, std::string>
 
@@ -353,9 +356,11 @@ binary_sensor:
     internal: false
     on_press:
       - logger.log: {format: "the visitor records a message", tag: talk, level: INFO}
+      - lambda: id(message_since) = millis() | 1;
       - aikos_voice.visitor_speak
     on_release:
       - lambda: |-
+          id(message_since) = 0;
           if (id(voice).answered()) {
             ESP_LOGI("talk", "message recording ended, a key answered: the call goes on");
           } else if (id(voice).in_call()) {
@@ -409,6 +414,19 @@ interval:
           const std::string m = id(voice).member_octets();
           if (!id(member_keys).has_state() || id(member_keys).state != m)
             id(member_keys).publish_state(m);
+  - interval: 1s                  # "Nachricht hinterlassen": a recording counts as speech, like a held key button
+    then:
+      - lambda: |-
+          // The call would end after "Call silence end" (10 s) without speech: a visitor who thinks before talking, or
+          // pauses, would lose the rest of the message while the screen still shows "Aufnahme läuft". So while the
+          // screen records, the silence window starts anew every second; a call that ended anyway starts again.
+          // A screen that restarts mid-recording never sends the end: at most 75 s (the recording itself stops at 60 s).
+          if (!id(screen_message).state || id(message_since) == 0 || millis() - id(message_since) > 75000)
+            return;
+          if (id(voice).in_call())
+            id(voice).speech(::aikos::voice::Role::DOOR);
+          else
+            id(voice).visitor_speak();
 
 text_sensor:
   - platform: template
