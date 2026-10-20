@@ -24,7 +24,7 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.21"
+    version: "0.7.22"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
     - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
@@ -90,6 +90,9 @@ aikos_peer_guard:
       reset_out: GPIO9           # -> bell CHIP_UP (header pin 30), open-drain, pulls low 200 ms
       resets:
         name: Bell resets by the talk computer
+        entity_category: diagnostic
+      heartbeat:                 # on while the bell's heartbeat arrives over its wire (box check, 0.7.22)
+        name: Bell heartbeat
         entity_category: diagnostic
 
 # the bell's Wi-Fi "aikos" first, the house Wi-Fi as fallback, back to "aikos" by itself (bausteine/tuerstation.md H3)

@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.15"
+    version: "0.7.16"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h

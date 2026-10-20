@@ -40,6 +40,10 @@ binary_sensor:
       static bool held = false;
       static uint32_t call_ms = 0;
       const uint32_t now = millis();
+      // Not in the first minute after the screen starts: in the box on 20 Oct 2026 it reported a target at 75-118 cm
+      // for 40 s right after a restart, in an empty room. A power cut at night must not switch on light or alarm.
+      if (now < 60000)
+        return false;
       if (door_ui::call_active) {
         call_ms = now == 0 ? 1 : now;
         return held;

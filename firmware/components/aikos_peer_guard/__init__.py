@@ -14,16 +14,18 @@ first 2 min after our boot or after a reset, at most `max_resets_per_hour` per p
         reset_out: GPIO40          # open-drain: pulls the peer's EN low, otherwise high-impedance
         resets:
           name: Talk computer resets by the bell
+        heartbeat:                 # optional: on while the peer's heartbeat arrives (edge within 3 s); shows a bad wire
+          name: Talk computer heartbeat
 """
 
 import esphome.codegen as cg
 from esphome import pins
-from esphome.components import sensor
+from esphome.components import binary_sensor, sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIMEOUT
 
 CODEOWNERS = ["@aikos-home"]
-AUTO_LOAD = ["sensor"]
+AUTO_LOAD = ["sensor", "binary_sensor"]
 
 CONF_HEARTBEAT_OUT = "heartbeat_out"
 CONF_HEARTBEAT_IN = "heartbeat_in"
@@ -33,6 +35,7 @@ CONF_HEALTHY = "healthy"
 CONF_INHIBIT = "inhibit"
 CONF_RESETS = "resets"
 CONF_MAX_RESETS_PER_HOUR = "max_resets_per_hour"
+CONF_HEARTBEAT = "heartbeat"
 
 aikos_peer_guard_ns = cg.esphome_ns.namespace("aikos_peer_guard")
 AikosPeerGuard = aikos_peer_guard_ns.class_("AikosPeerGuard", cg.Component)
@@ -45,6 +48,9 @@ PEER_SCHEMA = cv.Schema(
         cv.Optional(CONF_TIMEOUT, default="30s"): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_MAX_RESETS_PER_HOUR, default=3): cv.int_range(min=1, max=10),
         cv.Optional(CONF_RESETS): sensor.sensor_schema(accuracy_decimals=0, icon="mdi:restart-alert"),
+        cv.Optional(CONF_HEARTBEAT): binary_sensor.binary_sensor_schema(
+            device_class="connectivity", icon="mdi:heart-pulse"
+        ),
     }
 )
 
@@ -71,6 +77,7 @@ async def to_code(config):
         heartbeat_in = await cg.gpio_pin_expression(peer[CONF_HEARTBEAT_IN])
         reset_out = await cg.gpio_pin_expression(peer[CONF_RESET_OUT])
         resets = await sensor.new_sensor(peer[CONF_RESETS]) if CONF_RESETS in peer else cg.nullptr
+        heartbeat = await binary_sensor.new_binary_sensor(peer[CONF_HEARTBEAT]) if CONF_HEARTBEAT in peer else cg.nullptr
         cg.add(
             var.add_peer(
                 peer[CONF_NAME],
@@ -79,5 +86,6 @@ async def to_code(config):
                 peer[CONF_TIMEOUT].total_milliseconds,
                 peer[CONF_MAX_RESETS_PER_HOUR],
                 resets,
+                heartbeat,
             )
         )

@@ -80,6 +80,9 @@ aikos_peer_guard:
       resets:
         name: Talk computer resets by the bell
         entity_category: diagnostic
+      heartbeat:                 # on while the talk computer's heartbeat arrives over its wire (box check, 0.3.24)
+        name: Talk computer heartbeat
+        entity_category: diagnostic
 
 safe_mode:
   on_safe_mode:

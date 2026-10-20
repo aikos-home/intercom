@@ -10,11 +10,13 @@ static constexpr uint32_t BEAT_HALF_MS = 500;  // 1 Hz square wave
 static constexpr uint32_t GRACE_MS = 120000;   // no reset in the first 2 min after our boot or after a reset
 static constexpr uint32_t PULSE_MS = 200;      // reset pulse on the peer's EN
 static constexpr uint32_t HOUR_MS = 3600000;
+static constexpr uint32_t ALIVE_MS = 3000;     // the heartbeat sensor: an edge within the last 3 s (it toggles every 0.5 s)
 
 static bool reached(uint32_t now, uint32_t when) { return static_cast<int32_t>(now - when) >= 0; }
 
 void AikosPeerGuard::add_peer(const char *name, InternalGPIOPin *heartbeat_in, InternalGPIOPin *reset_out,
-                              uint32_t timeout_ms, int max_per_hour, sensor::Sensor *resets) {
+                              uint32_t timeout_ms, int max_per_hour, sensor::Sensor *resets,
+                              binary_sensor::BinarySensor *heartbeat) {
   Peer p{};
   p.name = name;
   p.heartbeat_in = heartbeat_in;
@@ -22,6 +24,7 @@ void AikosPeerGuard::add_peer(const char *name, InternalGPIOPin *heartbeat_in, I
   p.timeout_ms = timeout_ms;
   p.max_per_hour = max_per_hour;
   p.resets_sensor = resets;
+  p.heartbeat_sensor = heartbeat;
   this->peers_.push_back(p);
 }
 
@@ -68,9 +71,17 @@ void AikosPeerGuard::loop() {
     if (level != p.last_level) {
       p.last_level = level;
       p.last_edge_ms = now;
+      p.real_edge_ms = now;
       if (!p.seen)
         ESP_LOGI(TAG, "heartbeat of '%s' seen: watching it", p.name);
       p.seen = true;
+    }
+    if (p.heartbeat_sensor != nullptr) {
+      const int alive = (p.seen && now - p.real_edge_ms < ALIVE_MS) ? 1 : 0;
+      if (alive != p.published) {
+        p.published = alive;
+        p.heartbeat_sensor->publish_state(alive == 1);
+      }
     }
     if (now - p.hour_start_ms >= HOUR_MS) {
       p.hour_start_ms = now;

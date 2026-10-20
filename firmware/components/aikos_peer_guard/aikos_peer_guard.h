@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <vector>
+#include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
@@ -15,7 +16,7 @@ class AikosPeerGuard : public Component {
   void set_healthy(std::function<bool()> &&f) { this->healthy_ = std::move(f); }
   void set_inhibit(std::function<bool()> &&f) { this->inhibit_ = std::move(f); }
   void add_peer(const char *name, InternalGPIOPin *heartbeat_in, InternalGPIOPin *reset_out, uint32_t timeout_ms,
-                int max_per_hour, sensor::Sensor *resets);
+                int max_per_hour, sensor::Sensor *resets, binary_sensor::BinarySensor *heartbeat);
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -29,6 +30,9 @@ class AikosPeerGuard : public Component {
     uint32_t timeout_ms;
     int max_per_hour;
     sensor::Sensor *resets_sensor;
+    binary_sensor::BinarySensor *heartbeat_sensor;
+    uint32_t real_edge_ms{0};  // the last edge that really came over the wire (last_edge_ms is also moved by a reset)
+    int published{-1};         // the heartbeat sensor's last state (-1 = none yet)
     bool last_level{false};
     bool seen{false};  // a heartbeat edge was seen at least once: only then can a missing one mean "hung"
     uint32_t last_edge_ms{0};
