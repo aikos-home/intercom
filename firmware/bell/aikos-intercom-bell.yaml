@@ -34,6 +34,7 @@ udp:
     - !secret ring_target_1
     - !secret ring_target_2
     - !secret ring_target_3   # the door screen: shows "Es klingelt" even while HA restarts
+    - !secret ring_target_4   # the talk computer: a key that holds soon after a ring answers it (voice v2 case 1)
 
 esp32:
   board: esp32-s3-devkitc-1

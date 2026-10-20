@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.14"
+    version: "0.7.15"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -63,6 +63,9 @@ esphome:
             door_ui::set_note(id(house_note).state);
             door_ui::set_targets(id(ring_targets).state);
             door_ui::set_quiet(id(quiet_hours).state);
+
+packages:
+  radar: !include radar/ld2410.yaml   # presence radar LD2410C on the edge row RX/TX (box wiring 2026-10-20)
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -190,6 +193,16 @@ interval:
             door_ui::want_partial = false;
             id(dirty) = true;
           }
+          // "Nachricht hinterlassen": the recording state straight to the talk computer, resent every second
+          if (id(message_held).state != door_ui::message_on)
+            id(message_held).publish_state(door_ui::message_on);
+          // "Bei jemandem klingeln": HA/aikos ring the picked person's keys (KR-R4)
+          if (door_ui::ring_request) {
+            door_ui::ring_request = false;
+            if (!api::global_api_server->is_connected())
+              ESP_LOGW("ui", "targeted ring for '%s' while HA is away: nobody is told", door_ui::ring_request_target.c_str());
+            id(send_targeted_ring).execute(door_ui::ring_request_target);
+          }
           // the visitor's one-time "Sprechen": a 1.5 s pulse straight to the talk computer (it starts the call on the edge)
           static uint32_t speak_until = 0;
           if (door_ui::speak_request) {
@@ -227,6 +240,18 @@ interval:
             if (dt > 100)
               ESP_LOGW("ui", "rendering a picture took %u ms", (unsigned) dt);
           }
+
+script:
+  - id: send_targeted_ring   # KR-R4: HA (tuerstation.yaml / later aikos) rings the keys of `target` ("" = everyone)
+    mode: queued
+    parameters:
+      target: string
+    then:
+      - homeassistant.event:
+          event: esphome.aikos_door_ring
+          data:
+            target: !lambda return target;
+            source: screen
 
 text_sensor:
   # voice v2: the call (aikos call log, people) and the talk computer's state, all as the one source each
@@ -365,14 +390,14 @@ text:
 switch:
   - platform: template
     id: quiet_hours
-    name: Quiet hours (test)    # stand-in until aikos provides the quiet-hours entity
+    name: Quiet hours (test)    # manual override; the real source is aikos binary_sensor.aikos_quiet_hours (0.7.15)
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     entity_category: config
     on_turn_on:
       - lambda: door_ui::set_quiet(true);
     on_turn_off:
-      - lambda: door_ui::set_quiet(false);
+      - lambda: door_ui::set_quiet(id(aikos_quiet).state);
 
 # Direct ring path: the bell (provider aikos-intercom-bell) sends to this screen's fixed address, UDP 18511.
 # And the other way inside the door: this screen tells the talk computer when the visitor holds the talk button.
@@ -388,6 +413,7 @@ packet_transport:
     update_interval: 1s              # the talk button state again every second: a lost packet can't swallow a release
     binary_sensors:
       - ptt_held
+      - message_held   # "Nachricht hinterlassen" records (0.7.15): the talk computer keeps the door mic open
     providers:
       - name: aikos-intercom-bell
         encryption:
@@ -401,6 +427,15 @@ binary_sensor:
     id: ptt_held
     name: Visitor holds talk button
     icon: mdi:gesture-tap-hold
+  - platform: template
+    id: message_held
+    name: Visitor records a message
+    icon: mdi:voicemail
+  - platform: homeassistant   # aikos quiet hours (KR-R11): the door offers "Nachricht hinterlassen" at once
+    id: aikos_quiet
+    entity_id: binary_sensor.aikos_quiet_hours
+    on_state:
+      - lambda: door_ui::set_quiet(x || id(quiet_hours).state);
   - platform: homeassistant   # the talk computer has a call (a key held, or the visitor tapped "Sprechen")
     id: talk_in_call
     entity_id: binary_sensor.aikos_intercom_talk_in_call

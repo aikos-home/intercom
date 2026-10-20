@@ -24,9 +24,10 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.20"
+    version: "0.7.21"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
+    - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
   on_boot:
     - priority: -100
       then:
@@ -37,6 +38,12 @@ esphome:
             id(voice).set_call_silence_end((uint32_t) (id(silence_end).state * 1000));
             id(voice).set_call_max_length((uint32_t) (id(max_length).state * 1000));
             id(apply_keys).execute(id(key_addresses).state);
+            // a new press of the brass button, straight from the bell: the door's ring window opens (voice v2 case 1:
+            // a key that holds within 2 min answers that ring). Restored 0.7.21 (the test gong had used the same path).
+            aikos_ring::on_press = [](uint32_t now) {
+              ESP_LOGI("talk", "the bell rang (direct)");
+              id(voice).ring();
+            };
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -309,6 +316,9 @@ packet_transport:
       - name: aikos-roomkey-touch    # the RoomKey Touch, replaces the desk key at the bench (RoomKey 04.10.)
         encryption:
           key: !secret key_link_key
+      - name: aikos-intercom-bell      # the bell's press counter, straight from the bell (0.7.21)
+        encryption:
+          key: !secret ring_transport_key
 
 
 binary_sensor:
@@ -320,6 +330,26 @@ binary_sensor:
     internal: false
     on_press:
       - aikos_voice.visitor_speak
+  # "Nachricht hinterlassen" at the door (0.7.21): while the screen records, the door mic is open like in a call, so the
+  # words go to the transcriber and into the call log (archive, RoomKey chat). The end of the recording ends the call,
+  # unless a room key answered meanwhile: then the visitor talks to someone and the call goes on.
+  - platform: packet_transport
+    provider: aikos-intercom-screen
+    remote_id: message_held
+    id: screen_message
+    name: Screen message recording (direct)
+    internal: false
+    on_press:
+      - logger.log: {format: "the visitor records a message", tag: talk, level: INFO}
+      - aikos_voice.visitor_speak
+    on_release:
+      - lambda: |-
+          if (id(voice).answered()) {
+            ESP_LOGI("talk", "message recording ended, a key answered: the call goes on");
+          } else if (id(voice).in_call()) {
+            ESP_LOGI("talk", "message recording ended: the call ends");
+            id(voice).end_call();
+          }
   - platform: aikos_voice
     in_call:
       name: In call
@@ -468,6 +498,20 @@ number:
       - lambda: id(voice).set_call_max_length((uint32_t) (x * 1000));
 
 sensor:
+  - platform: packet_transport   # the bell's direct ring packets: boot id first, then the press number (ring/ring_path.h)
+    provider: aikos-intercom-bell
+    remote_id: boot_id
+    id: bell_boot_direct
+    internal: true
+    on_value:
+      - lambda: aikos_ring::direct_boot(x, millis());
+  - platform: packet_transport
+    provider: aikos-intercom-bell
+    remote_id: presses
+    id: bell_presses_direct
+    internal: true
+    on_value:
+      - lambda: aikos_ring::direct_presses(x, millis());
   - platform: packet_transport   # each key's state, one per packet (refreshes its hold)
     provider: aikos-roomkey-desk
     remote_id: key_state

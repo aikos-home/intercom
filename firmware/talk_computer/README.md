@@ -21,6 +21,11 @@ What it does:
 - **Self-healing:** a firmware counts as good only after 2 minutes with the gateway answering; 5 failed boots in a row
   start ESPHome's safe mode; the gateway guard restarts after 5 minutes without an answer; the bell can reset this
   board over a wire and the other way round (`aikos_peer_guard`).
+- **Rings straight from the bell** (0.7.21): the bell's press counter arrives over `packet_transport`
+  (`../ring/ring_path.h` counts each press once), so a key that holds within 2 minutes answers that ring, without HA.
+- **Leave a message** (0.7.21): while the screen records ("Nachricht hinterlassen"), the door microphone is open as in a
+  call, so the words reach the transcriber and the call log; the end of the recording ends the call unless a room key
+  answered meanwhile.
 - **No chime at the door:** the test gong plays only on the Home Assistant button "Test chime".
 
 Flash over the board's port labelled "USB" (native USB, logs too); a factory-fresh board needs BOOT + RST once.

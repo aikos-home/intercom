@@ -100,11 +100,16 @@ inline std::string sign, note, ring_target = "allen im Haus";
 inline std::string targets[MAX_TARGETS] = {"Alle im Haus"};
 inline int n_targets = 1;
 inline uint32_t partials_since_flash = 0;
+// requests to the outside (0.7.15): the glue sends them on
+inline bool message_on = false;        // "Nachricht hinterlassen" records: the talk computer keeps the door mic open
+inline bool ring_request = false;      // "Bei jemandem klingeln": a targeted ring for HA/aikos (KR-R4)
+inline std::string ring_request_target;  // "" = everyone in the house, else a name from the ring targets
 // the call page's chat: messages [chat_first, n) are on the screen; latest = it follows new messages
 inline int chat_first = 0;
 inline bool chat_latest = true, shown_answered = false, speak_request = false;
 inline bool shown_placeholder = false;  // the call page shows the grey "Hier erscheint das Gespräch als Text."
 inline uint32_t seen_chat = 0, seen_status = 0, speak_ms = 0;
+inline uint32_t seen_rec_chat = 0;  // the chat as it was when the recording started: only newer text is "Erkannt"
 inline Display *disp = nullptr;  // for measuring text outside the draw lambda (set at boot)
 // requests to the YAML glue
 inline bool want_page = false, want_partial = false;
@@ -131,6 +136,8 @@ inline void go(View v, uint32_t now, bool flash = false) {
   view_ms = now;
   full_needed = true;
   (page ? want_page : want_partial) = true;
+  if (v != RECORDING)
+    message_on = false;  // send, cancel, the time limit or a key answering: the recording is over
 }
 inline void changed() {
   want_partial = true;
@@ -569,7 +576,15 @@ inline void draw_recording(Display &it) {
   it.print(516, 180, a.r32, INK, TextAlign::TOP_RIGHT, "1:00");
   it.print(24, 236, a.r32, INK, TextAlign::TOP_LEFT, "Erkannt:");
   frame(it, 24, 280, 492, 340, 18, 3, INK, PAPER);
-  text(it, a.r32, 48, 304, 42, INK, TextAlign::TOP_LEFT, "Das Mikrofon an der Tür kommt mit dem Sprechrechner.", 444, 3);
+  std::string said;  // the visitor's words of this recording, from the call log (the transcriber writes them)
+  for (int i = 0; i < aikos_call::n_msgs; i++) {
+    if (aikos_call::msgs[i].side != "door" || aikos_call::msgs[i].text.empty())
+      continue;
+    if (!said.empty())
+      said += " ";
+    said += aikos_call::msgs[i].text;
+  }
+  text(it, a.r32, 48, 304, 42, INK, TextAlign::TOP_LEFT, said.empty() ? "Bitte jetzt sprechen." : said, 444, 7);
   wide_button(it, 640, 160, true, icon::SEND, a.i64, a.m40, "Fertig, senden", nullptr, SEND);
   wide_button(it, 816, 96, false, icon::CLOSE, a.i48, a.m32, "Abbrechen", nullptr, CANCEL);
 }
@@ -643,17 +658,21 @@ inline void act(int action, int arg, uint32_t now) {
     case GO_FRIENDS: go(FRIENDS, now); break;
     case GO_BACK:
     case CANCEL: go(START, now); break;
-    case TARGET:  // Stage 1 via HA (not wired yet): the page shows whom it rings
+    case TARGET:  // KR-R4: the screen rings whom the visitor picked; HA/aikos ring that person's keys (0.7.15)
       ring_target = arg == 0 ? "allen im Haus" : targets[arg];
+      ring_request_target = arg == 0 ? std::string() : targets[arg];
+      ring_request = true;
       ring_ms = now;
       waited = false;
       ESP_LOGI("ui", "targeted ring: %s", ring_target.c_str());
       go(RINGING, now);
       break;
-    case RECORD:
+    case RECORD:  // the talk computer opens the door mic: the words go to the transcriber and into the call log
       rec_ms = now;
       rec_step = -1;
+      seen_rec_chat = aikos_call::chat_version;
       go(RECORDING, now);
+      message_on = true;
       break;
     case SEND:
       sent_drawing = false;
@@ -726,7 +745,7 @@ inline void tick(uint32_t now) {
   // a call at the door (a key held, or the visitor tapped "Sprechen"): the call page; its end: back to the start
   if (call_active && !seen_call) {
     seen_call = true;
-    if (view != CALL) {
+    if (view != CALL && view != RECORDING) {  // the recording's own call stays on the recording page
       chat_first = newest_page_first();
       chat_latest = true;
       go(CALL, now);
@@ -780,6 +799,16 @@ inline void tick(uint32_t now) {
         go(CALL, now, true);
       else
         changed();
+    }
+  }
+  if (view == RECORDING) {
+    if (aikos_call::answered) {  // someone inside answered the message: now it is a conversation
+      chat_first = newest_page_first();
+      chat_latest = true;
+      go(CALL, now, true);
+    } else if (aikos_call::chat_version != seen_rec_chat) {
+      seen_rec_chat = aikos_call::chat_version;
+      changed();  // new recognised words: they only add ink in the box
     }
   }
   switch (view) {

@@ -31,8 +31,9 @@ panel (ED047TC1, 960 × 540, 16 grey levels) and a GT911 touch chip. Bench-teste
 
 | File | What |
 |---|---|
-| `aikos-intercom-screen.yaml` | **what runs at the door:** ring page with "Sprechen", call page, transcripts, setup page, Wi-Fi "aikos" with house Wi-Fi fallback |
-| `ring/ring_path.h` | every press heard twice (directly from the bell and via Home Assistant), counted once; a new bell boot id waits for its own press number |
+| `aikos-intercom-screen.yaml` | **what runs at the door:** ring page with "Sprechen", call page, transcripts, setup page, Wi-Fi "aikos" with house Wi-Fi fallback. From 0.7.15: "Bei jemandem klingeln" fires the Home Assistant event `esphome.aikos_door_ring {target, source}`; "Nachricht hinterlassen" opens the door microphone through the talk computer and shows the recognised words; quiet hours from `binary_sensor.aikos_quiet_hours` |
+| `radar/ld2410.yaml` | presence radar HLK-LD2410C on the screen's RX/TX holes: "Someone at the door", frozen during calls (the speaker cone moves next to it) |
+| `ring/ring_path.h` | every press heard twice (directly from the bell and via Home Assistant), counted once; a new bell boot id waits for its own press number. The talk computer uses it too (0.7.21), for the direct path only |
 | `call/call_page.h`, `talk/talk_page.h`, `ui/door_ui.h`, `setup/setup_page.h` | the page logic and drawing (unit test: `tests/call_page_test.cpp`) |
 | `screen-test.yaml` | bench test page: orientation arrow, five touch targets, border lines |
 | `screen-demo.yaml` | what the screen can do, 8 pages: drawing, photos, vector graphic and icons, QR codes, text sizes, grey levels, animation; bottom bar = page changes |

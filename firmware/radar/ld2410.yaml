@@ -1,0 +1,100 @@
+# Presence radar HLK-LD2410C on the door screen (package of aikos-intercom-screen.yaml, 2026-10-20).
+# Wiring (box, WIRING.md): radar VCC -> screen edge hole 2 (VBUS 5 V), GND -> screen GND, radar TX -> hole "RX" (GPIO44),
+# radar RX -> hole "TX" (GPIO43), OUT free. UART0 is free: the logger runs on USB_SERIAL_JTAG. The ROM boot messages on
+# GPIO43 reach the radar at 115200 Bd; it ignores them.
+# the owner 2026-10-04: range filter against passing cars; the speaker cone moves during calls -> masked there.
+# The radar keeps its gates, sensitivities and Bluetooth switch in its own flash: set them once from HA, no rebuild.
+
+uart:
+  id: radar_uart
+  tx_pin: GPIO43   # edge row "TX" -> radar RX
+  rx_pin: GPIO44   # edge row "RX" <- radar TX
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  id: radar
+  uart_id: radar_uart
+
+binary_sensor:
+  - platform: ld2410
+    ld2410_id: radar
+    has_target:
+      id: radar_target
+      name: Radar target
+      entity_category: diagnostic
+    has_moving_target:
+      name: Radar moving target
+      entity_category: diagnostic
+    has_still_target:
+      name: Radar still target
+      entity_category: diagnostic
+  # What the house uses: someone stands at the door. During a call (and 3 s after it) the radar is not asked, because
+  # the speaker cone moves right next to it; the state from before the call holds.
+  - platform: template
+    id: someone_at_door
+    name: Someone at the door
+    device_class: occupancy
+    lambda: |-
+      static bool held = false;
+      static uint32_t call_ms = 0;
+      const uint32_t now = millis();
+      if (door_ui::call_active) {
+        call_ms = now == 0 ? 1 : now;
+        return held;
+      }
+      if (call_ms != 0 && now - call_ms < 3000)
+        return held;
+      held = id(radar_target).state;
+      return held;
+
+sensor:
+  - platform: ld2410
+    ld2410_id: radar
+    detection_distance:
+      name: Radar distance
+    moving_distance:
+      name: Radar moving distance
+      entity_category: diagnostic
+    still_distance:
+      name: Radar still distance
+      entity_category: diagnostic
+    moving_energy:
+      name: Radar moving energy
+      entity_category: diagnostic
+    still_energy:
+      name: Radar still energy
+      entity_category: diagnostic
+
+number:
+  - platform: ld2410
+    ld2410_id: radar
+    timeout:
+      name: Radar hold time
+    max_move_distance_gate:
+      name: Radar max moving gate
+    max_still_distance_gate:
+      name: Radar max still gate
+
+switch:
+  - platform: ld2410
+    ld2410_id: radar
+    bluetooth:
+      name: Radar Bluetooth   # the module advertises a config service by default: switch it OFF once at the door
+    engineering_mode:
+      name: Radar engineering mode
+
+button:
+  - platform: ld2410
+    ld2410_id: radar
+    restart:
+      name: Radar restart
+    query_params:
+      name: Radar read settings
+
+text_sensor:
+  - platform: ld2410
+    ld2410_id: radar
+    version:
+      name: Radar firmware

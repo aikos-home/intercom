@@ -5,6 +5,10 @@ Bench state 4 Oct 2026; the whole box (talk computer, amplifier, screen) is in [
 Source: Waveshare wiki https://www.waveshare.com/wiki/ESP32-S3-ETH, image "ESP32-S3-ETH-details-15" (checked 2026-10-02).
 View: label side, USB-C at the top. Pico-style 2 × 20 header, 2.54 mm pitch, rows 17.78 mm apart.
 
+⚠️ **In the box the bell sits the other way round** (label side front, USB-C and LAN at the BOTTOM): the "left row" below
+(VBUS … IO43) is then on the outside RIGHT with VBUS at the bottom, the "right row" (IO20 … IO33) faces the talk computer.
+The box wiring per pin: [`../WIRING.md`](../WIRING.md) section 2 (read from a photo of the carrier, 17 Oct 2026).
+
 | Pin | Left row | Bench use | | Pin | Right row | Bench use |
 |---|---|---|---|---|---|---|
 | 40 | VBUS | **5 V on PoE → breadboard row 25** (talk 5Vin, amp Vin, screen VBUS) | | 1 | GPIO20 (USB D+) | avoid |
