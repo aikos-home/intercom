@@ -222,6 +222,17 @@ distribution board. It stays disconnected until the bell can
 switch it: a logic-level MOSFET on the board (free area C1–J7), the 73 °C thermal fuse in series, and the governor in the
 bell's firmware (box dew point and margin are already in 0.3.23). On the bench the rail stood at 4.8 V with the heater on.
 
+**Switch chosen (2026-10-21):** an **HW-532** module (FR120N, opto-isolated input that takes a 3.3 V signal; load side
+rated 5-30 V, so our 5 V rail is at its low end, enough for this foil) instead of a bare MOSFET on the board. Control
+from **bell GPIO16 (header pin 32)**, signal GND from pin 33 next to it; the module's supply from the 5 V rail; its output
+to the foil with the 73 °C fuse in series. Terminal names on the module still to be read off the module itself (sellers
+print PWM/GND and +/LOAD/- or LOAD+/LOAD-): the sheet comes after a photo of it.
+**Governor in bell 0.3.26** (dry-run 21.10., foil not wired): slow PWM, 10 s period; heats when the box dew point margin
+falls below the target (default 6 K; margin 0 K = full) or the box gets colder than the minimum (default 3 °C; full 5 K
+below), never at 40 °C or more, never without valid readings (about 3 min after a restart), at most "Heater maximum power"
+(default 60 %), and only while "Heater allowed" is on (off from the factory). Power: the foil roughly doubles the box's
+draw (4.82 W today); after wiring, a full-load test (heater 100 %, speaker test, screen page change) must show no restart.
+
 ## 11. Before the first power-on
 
 No power, multimeter on beep:
