@@ -28,6 +28,13 @@ What it does:
   answered meanwhile.
 - **Speech output** (0.7.21): the Home Assistant action `allow_tts {host, ms}` lets one trusted source play at the door
   for up to 60 s (RTP like a key), outside of calls too: the door part of a later `aikos.say`.
+- **Message recorder** (0.7.23): `text` "Message recorder" (`host:port`) gets the door microphone in addition, and only
+  while a message is recorded (audio is kept for "Nachricht hinterlassen" only, never for calls); `test_message {ms}`
+  records one without a finger on the screen.
+- **App participant** (0.7.24): `app_join {host, ms}` sends the door microphone to an app service's socket during a call
+  for up to 60 s (refresh it); the app takes part like a key through `key_state {host, state}` with the same `ip:port`
+  and sends its RTP from exactly there. No change to `aikos_voice`.
+- **Supervision test** (0.7.25): `test_reset_bell` pulls the bell's reset line for 200 ms, as the guard would.
 - **No chime at the door:** the test gong plays only on the Home Assistant button "Test chime".
 
 Flash over the board's port labelled "USB" (native USB, logs too); a factory-fresh board needs BOOT + RST once.

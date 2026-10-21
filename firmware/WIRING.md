@@ -231,7 +231,9 @@ Sheet: `bench/kasten-runde5-licht-heizung.svg` (wires H1–H6; the foil's leads 
 **Governor in bell 0.3.26** (dry-run 21.10., foil not wired): slow PWM, 10 s period; heats when the box dew point margin
 falls below the target (default 6 K; margin 0 K = full) or the box gets colder than the minimum (default 3 °C; full 5 K
 below), never at 40 °C or more, never without valid readings (about 3 min after a restart), at most "Heater maximum power"
-(default 60 %), and only while "Heater allowed" is on (off from the factory). Power: the foil roughly doubles the box's
+(default 60 %), and only while "Heater allowed" is on (off from the factory). From bell 0.3.29: **"Heater test power"** sets a
+fixed power for at most 5 min (then 0 by itself), with all guards; `tools/full_load_test.py heater|light|both` runs the
+full-load test with it (dry run 21.10. without the foil: OK). Power: the foil roughly doubles the box's
 draw (4.82 W today); after wiring, a full-load test (heater 100 %, speaker test, screen page change) must show no restart.
 
 ## 10a. Door light: firmware ready, strip not wired

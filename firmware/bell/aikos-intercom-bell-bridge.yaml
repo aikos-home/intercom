@@ -16,7 +16,7 @@ external_components:
 esphome:
   project:
     name: aikos-home.intercom-bell
-    version: "0.3.28-bridge"
+    version: "0.3.29-bridge"
 
 wifi:
   # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
@@ -124,11 +124,30 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
     entity_category: config
+    on_turn_on:
+      - script.execute: heater_govern
     on_turn_off:
       - output.set_level: {id: heater_out, level: 0%}
       - sensor.template.publish: {id: heater_power, state: 0}
 
 number:
+  # TEST (full-load test, 21.10.): a fixed heater power for at most 5 min, then back to 0 by itself. The governor's
+  # guards still hold: "Heater allowed", off at 40 °C or without readings, paused while the door light is on.
+  - platform: template
+    id: heater_test_power
+    name: Heater test power
+    icon: mdi:radiator
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 10
+    initial_value: 0
+    optimistic: true
+    restore_value: false
+    entity_category: config
+    on_value:
+      - lambda: 'id(heater_test_until) = x > 0 ? ((millis() + 300000) | 1) : 0;'
+      - script.execute: heater_govern
   - platform: template
     id: heater_target_margin
     name: Heater target dew point margin
@@ -188,12 +207,26 @@ light:
     on_turn_on:   # at once, not at the governor's next round (up to 30 s)
       - output.set_level: {id: heater_out, level: 0%}
       - sensor.template.publish: {id: heater_power, state: 0}
+    on_turn_off:
+      - script.execute: heater_govern
 
-interval:
-  - interval: 30s
+globals:
+  - id: heater_test_until   # "Heater test power" runs until then (0 = no test)
+    type: uint32_t
+    initial_value: "0"
+
+script:
+  - id: heater_govern
+    mode: queued
     then:
       - lambda: |-
           float duty = 0;
+          const uint32_t now = millis();
+          if (id(heater_test_until) != 0 && (int32_t) (now - id(heater_test_until)) >= 0) {
+            id(heater_test_until) = 0;
+            id(heater_test_power).publish_state(0);
+            ESP_LOGI("heater", "test power over");
+          }
           // the PoE budget (802.3af, 4.82 W in the box today): heater (~5 W) and light (~1.2 W) never together
           const bool light_on = id(door_light).current_values.is_on();
           if (id(heater_allowed).state && light_on) {
@@ -208,6 +241,8 @@ interval:
               const float need_dew = std::max(0.0f, std::min(1.0f, (target - m) / target));
               const float need_cold = std::max(0.0f, std::min(1.0f, (tmin - t) / 5.0f));
               duty = std::max(need_dew, need_cold) * id(heater_max_power).state / 100.0f;
+              if (id(heater_test_until) != 0)
+                duty = id(heater_test_power).state / 100.0f;  // the test sets the power, the guards above stay
             }
           }
           id(heater_out).set_level(duty);
@@ -216,3 +251,8 @@ interval:
             ESP_LOGI("heater", "power %.0f %%", pct);
             id(heater_power).publish_state(pct);
           }
+
+interval:
+  - interval: 30s
+    then:
+      - script.execute: heater_govern

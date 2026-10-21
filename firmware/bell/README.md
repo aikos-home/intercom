@@ -11,7 +11,7 @@ Wi-Fi "aikos" for the screen and the talk computer and bridges it into the LAN. 
 | [`bell-core.yaml`](bell-core.yaml) | The bell logic, the same on every board: line sampling, press detection, line supervision, diagnostics |
 | [`aikos-intercom-bell.yaml`](aikos-intercom-bell.yaml) | The board file: Waveshare ESP32-S3-ETH (W5500 Ethernet, PoE via its plug-on module), direct ring targets, self-healing, supervision wires to the talk computer |
 | [`aikos-intercom-bell-aptest.yaml`](aikos-intercom-bell-aptest.yaml) | + an access point (bench step, kept as the base of the next file) |
-| [`aikos-intercom-bell-bridge.yaml`](aikos-intercom-bell-bridge.yaml) | **What runs at the door:** + Wi-Fi "aikos" bridged into the LAN (`eth_wifi_bridge`), + the two climate sensors (I²C) and the box's dew point |
+| [`aikos-intercom-bell-bridge.yaml`](aikos-intercom-bell-bridge.yaml) | **What runs at the door:** + Wi-Fi "aikos" bridged into the LAN (`eth_wifi_bridge`), + the two climate sensors (I²C) and the box's dew point, + the heater governor and the door light |
 | [`aikos-intercom-bell-bridge-diag.yaml`](aikos-intercom-bell-bridge-diag.yaml) | The same with a core dump on crash and test actions, for the bench |
 | [`aikos-intercom-bell-safe.yaml`](aikos-intercom-bell-safe.yaml) | The SAFE firmware in the factory partition (see below) |
 | [`partitions-bell.csv`](partitions-bell.csv) | Flash layout: factory 3 MB (safe firmware) + two 6 MB OTA slots |
@@ -61,7 +61,7 @@ continuous gong, like a school bell). A key rings once per new `(boot_id, presse
 
 ## Climate sensors
 
-Since 0.3.23 (written in October 2026, not yet on the device). One I²C bus at 100 kHz runs over the distribution
+Since 0.3.23 (on the device since 20 October 2026). One I²C bus at 100 kHz runs over the distribution
 board: header pin 34 (GPIO17) is SDA, pin 31 (GPIO18) is SCL, 3.3 V comes from pin 36. Both modules bring their own
 pull-ups.
 
@@ -72,14 +72,31 @@ pull-ups.
 
 From the box values the bell computes the **Box dew point** (Magnus formula) and the **Box dew point margin**, how
 far the box is above it. The bus scan at boot logs what answers. The sensors live in the bridge file only: the
-WT32-ETH01 file needs GPIO17 for its Ethernet. The heater (not connected yet) will be driven from these numbers: on
-when the box gets cold or close to the dew point, off during calls.
+WT32-ETH01 file needs GPIO17 for its Ethernet.
+
+## Heater and door light
+
+**Heater** (0.3.26, governor in a script since 0.3.29): a 5 W heating foil behind the e-paper, switched by an
+opto-isolated MOSFET module (HW-532, FR120N) from GPIO16 with slow PWM (10 s), a 73 °C thermal fuse in series. It heats
+when the box dew point margin falls below its target (default 6 K) or the box gets colder than its minimum (default
+3 °C); never at 40 °C or more, never without valid readings, at most "Heater maximum power" (default 60 %), and only
+while "Heater allowed" is on (off from the factory). "Heater test power" sets a fixed power for at most 5 minutes, for
+the full-load test.
+
+**Door light** (0.3.27): an SK6812 RGBW strip (5 V) under the canopy, data from GPIO15; light "Door light", off after a
+restart, capped at 75 % until the full-load test. While it is on the heater pauses, so heater and light never load the
+PoE budget together.
+
+Wiring: [`../WIRING.md`](../WIRING.md) §10 and §10a.
 
 ## Test press
 
 The API action `test_press(hold_ms)` holds the button state like a closed contact for 30 ms to 10 s. Everything after
 the line sampling runs exactly as for a real press: filters, counter, direct ring path, Home Assistant event. It makes
 the whole ring path testable from a script, without touching the button.
+
+`test_reset_talk` (0.3.25) pulls the talk computer's reset line for 200 ms, the same pulse the guard sends to a hung
+peer: it proves the reset wire.
 
 ## The supervised line
 
