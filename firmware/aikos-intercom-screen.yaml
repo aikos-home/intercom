@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.20"
+    version: "0.7.21"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -271,7 +271,9 @@ interval:
             id(ring_direct_lead).publish_state(aikos_ring::lead_ms);
           }
           if (page) {
-            id(epaper).set_page_change_style(1);  // a new page: the short flash
+            // a new page: the short flash; the panel check may ask for the driver's deep clean once
+            id(epaper).set_page_change_style(door_ui::deep_clean_request ? 2 : 1);
+            door_ui::deep_clean_request = false;
             id(epaper).request_page_change();
             id(dirty) = true;
             id(page_pending) = true;
@@ -695,6 +697,21 @@ api:
         - lambda: id(aikos_net)->test_leave_aikos();
     # aikos-app A10/A11: a resident's written answer while the visitor is at the door. HA (later the app) checks that
     # someone is there, speaks the text and logs it; the screen shows it and drops it when its radar lets go.
+    # panel check (0.7.21): test pictures and the deep clean, against a line that stays (21.10.)
+    - action: panel_test
+      variables:
+        pattern: int
+      then:
+        - lambda: |-
+            ESP_LOGI("ui", "panel test picture %d", pattern);
+            door_ui::set_test_pattern(pattern, millis());
+    - action: deep_clean
+      then:
+        - lambda: |-
+            ESP_LOGI("ui", "deep clean requested");
+            door_ui::deep_clean_request = true;
+            door_ui::full_needed = true;
+            door_ui::want_page = true;
     - action: show_reply
       variables:
         sender: string

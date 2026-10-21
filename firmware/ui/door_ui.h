@@ -108,6 +108,12 @@ inline std::string reply_from, reply_text;
 inline bool reply_pending = false;  // came during a call or a recording: shown when that is over
 static const uint32_t REPLY_MAX_MS = 180000, REPLY_GONE_MS = 15000;
 inline uint32_t gone_ms = 0;        // when the radar last let go (0 = someone is there)
+// Panel check (0.7.21, 21.10.: a full-width line at the arrow tip that a power cycle does not clear). HA shows test
+// pictures instead of the UI: 1 black, 2 white, 3 grey bands, 4 row ruler; 0 = back. A touch also ends it, 5 min at most.
+// Portrait: a horizontal line here is ONE column of the panel's own (landscape) grid, i.e. one source line.
+inline int test_pattern = 0;
+inline uint32_t test_ms = 0;
+inline bool deep_clean_request = false;  // the next page change uses the driver's deep clean (5 x 4 cycles, ~8 s)
 inline int rec_step = -1;
 inline uint32_t seen_transcript = 0;
 inline bool call_active = false, seen_call = false;  // a room key answered (HA: the talk computer's "In call")
@@ -244,6 +250,12 @@ inline void set_someone(bool on) {
     welcome_done = false;  // the next visitor gets the welcome again
   if (view == START || view == WELCOME)
     update_welcome();
+}
+inline void set_test_pattern(int p, uint32_t now) {
+  test_pattern = (p >= 1 && p <= 4) ? p : 0;
+  test_ms = now;
+  full_needed = true;
+  want_page = true;
 }
 inline void show_reply(const std::string &from, const std::string &txt, uint32_t now) {
   reply_from = from;
@@ -779,7 +791,37 @@ inline void draw_friends(Display &it) {
   }
 }
 
+inline void draw_test(Display &it) {
+  if (test_pattern == 1) {
+    rect(it, 0, 0, 540, 960, INK);
+  } else if (test_pattern == 3) {  // 16 grey bands side by side: a line across shows how each grey suffers
+    for (int k = 0; k < 16; k++) {
+      const uint8_t v = 255 - k * 17;
+      rect(it, k * 540 / 16, 0, (k + 1) * 540 / 16 - k * 540 / 16, 960, esphome::Color(v, v, v));
+    }
+  } else if (test_pattern == 4) {  // ticks every 10 px on both edges, longer every 50, numbers every 100
+    for (int y = 0; y < 960; y += 10) {
+      const int len = y % 100 == 0 ? 60 : (y % 50 == 0 ? 36 : 16);
+      rect(it, 0, y, len, 2, INK);
+      rect(it, 540 - len, y, len, 2, INK);
+      if (y % 100 == 0 && y > 0) {
+        char buf[8];
+        snprintf(buf, sizeof buf, "%d", y);
+        it.print(70, y, a.m32, INK, TextAlign::CENTER_LEFT, buf);
+        it.print(470, y, a.m32, INK, TextAlign::CENTER_RIGHT, buf);
+      }
+    }
+  }  // 2: white paper only
+}
+
 inline void draw(Display &it) {
+  if (test_pattern > 0) {
+    full_needed = false;
+    n_hits = 0;
+    it.fill(PAPER);
+    draw_test(it);
+    return;
+  }
   if (!full_needed && view == DRAW) {  // a stroke: the canvas only gains ink, the rest of the picture stays
     demo::canvas_draw(it, CANVAS_TOP, CANVAS_BOTTOM);
     return;
@@ -879,6 +921,10 @@ inline void act(int action, int arg, uint32_t now) {
 
 inline void touch(int x, int y, uint32_t now) {
   last_touch_ms = now;
+  if (test_pattern > 0) {  // someone at the door touched the test picture: the UI again
+    set_test_pattern(0, now);
+    return;
+  }
   if (view == DRAW && y > CANVAS_TOP + 4 && y < CANVAS_BOTTOM - 4 && x > 30 && x < 510) {
     demo::canvas_dot(x, y, 3, CANVAS_TOP, CANVAS_BOTTOM);
     stroke = true;
@@ -979,6 +1025,8 @@ inline void tick(uint32_t now) {
       changed();  // new recognised words: they only add ink in the box
     }
   }
+  if (test_pattern > 0 && now - test_ms >= 300000)
+    set_test_pattern(0, now);
   if (reply_pending && (view == START || view == WELCOME || view == SENT) && someone) {
     reply_pending = false;
     go(REPLY, now, true);
