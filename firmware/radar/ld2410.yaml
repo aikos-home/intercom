@@ -25,9 +25,11 @@ binary_sensor:
       name: Radar target
       entity_category: diagnostic
     has_moving_target:
+      id: radar_moving
       name: Radar moving target
       entity_category: diagnostic
     has_still_target:
+      id: radar_still
       name: Radar still target
       entity_category: diagnostic
   # What the house uses: someone stands at the door. During a call (and 3 s after it) the radar is not asked, because
@@ -50,7 +52,24 @@ binary_sensor:
       }
       if (call_ms != 0 && now - call_ms < 3000)
         return held;
-      held = id(radar_target).state;
+      // Filters (0.7.22, settable in HA without a new firmware). 21 Oct 2026 on the desk: short moving bursts at ~30 cm
+      // every 10-40 s (energy 51-73, still energy 5-10), nobody there; the greeting played for nobody. Most likely the
+      // screen's own radio right next to the radar; the radar takes no commands at the moment, so its gates can't be
+      // raised. A target nearer than "Radar minimum distance" doesn't count; a target must last "Radar confirm time".
+      bool seen = id(radar_target).state;
+      const float mind = id(radar_min_distance).state;
+      if (seen && mind > 0) {
+        const float md = id(radar_moving_distance).state, sd = id(radar_still_distance).state;
+        seen = (id(radar_moving).state && !std::isnan(md) && md >= mind) ||
+               (id(radar_still).state && !std::isnan(sd) && sd >= mind);
+      }
+      static uint32_t since = 0;
+      if (!seen)
+        since = 0;
+      else if (since == 0)
+        since = now | 1;
+      const float confirm_s = id(radar_confirm_time).state;
+      held = seen && (std::isnan(confirm_s) || now - since >= (uint32_t) (confirm_s * 1000.0f));
       return held;
     on_state:   # the screen's own greeting (aikos-app A13) needs no HA: it follows this sensor directly
       - lambda: door_ui::set_someone(x);
@@ -61,9 +80,11 @@ sensor:
     detection_distance:
       name: Radar distance
     moving_distance:
+      id: radar_moving_distance
       name: Radar moving distance
       entity_category: diagnostic
     still_distance:
+      id: radar_still_distance
       name: Radar still distance
       entity_category: diagnostic
     moving_energy:
@@ -104,6 +125,31 @@ sensor:
       still_energy: {name: Radar gate 8 still energy, entity_category: diagnostic}
 
 number:
+  # the filters of "Someone at the door" (0.7.22); 0 = off. Kept on the screen across restarts.
+  - platform: template
+    id: radar_min_distance
+    name: Radar minimum distance
+    icon: mdi:arrow-expand-horizontal
+    unit_of_measurement: cm
+    min_value: 0
+    max_value: 200
+    step: 5
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: radar_confirm_time
+    name: Radar confirm time
+    icon: mdi:timer-check-outline
+    unit_of_measurement: s
+    min_value: 0
+    max_value: 15
+    step: 0.5
+    initial_value: 0
+    optimistic: true
+    restore_value: true
+    entity_category: config
   - platform: ld2410
     ld2410_id: radar
     timeout:
