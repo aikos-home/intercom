@@ -354,6 +354,15 @@ inline void frame(Display &it, int x, int y, int w, int h, int r, int t, esphome
   }
 }
 
+// The panel draws bright values as ink (see paper()), so it.image() shows a grey photo as a negative (the owner, 21.10.:
+// the app's photo came out inverted, the PNG itself was fine). Draw it pixel by pixel with the grey turned round.
+inline void draw_photo(Display &it, esphome::image::Image *img, int x0, int y0) {
+  const int w = img->get_width(), h = img->get_height();
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++)
+      it.draw_pixel_at(x0 + x, y0 + y, paper(img->get_pixel(x, y).g));
+}
+
 enum Action {
   NONE,
   GO_PICK,
@@ -464,25 +473,35 @@ inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
     it.print(270, y, a.m48, INK, TextAlign::TOP_CENTER, muted ? "Klingel stumm" : "Ruhezeit");
     y += 70;
     text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, s, W, 3);
-  } else {
-    const std::string s = "Zum Klingeln den Messingknopf drücken";
-    const int n = count_lines(it, a.m40, s, 492, 3);
-    const int h = (sign.empty() ? 0 : 40 + 14) + 96 + 14 + n * 48 + 14 + 64;
-    int y = top + (height - h) / 2;
-    if (!sign.empty()) {
-      text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, sign, W, 1);
-      y += 54;
-    }
-    it.print(270, y, a.i96, INK, TextAlign::TOP_CENTER, icon::DOORBELL);
-    y += 110;
-    y += text(it, a.m40, 270, y, 48, INK, TextAlign::TOP_CENTER, s, 492, 3) * 48 + 14;
-    it.print(270, y, a.i64, INK, TextAlign::TOP_CENTER, icon::SOUTH);
   }
 }
 
+// the owner, 21.10. (canvas "Türbildschirm-Flow", 0.7.23): on the rest page the tiles come first and the bell hint sits
+// at the bottom, right above the brass button. Ringing, quiet hours and muted keep their words on top.
+static const char *const BELL_HINT = "Zum Klingeln den Messingknopf drücken";
+inline int bell_hint_top(Display &it) { return 921 - 77 - 14 - count_lines(it, a.m40, BELL_HINT, 492, 3) * 48 - 110; }
+inline void draw_bell_hint(Display &it, int y) {
+  it.print(270, y, a.i96, INK, TextAlign::TOP_CENTER, icon::DOORBELL);
+  y += 110;
+  y += text(it, a.m40, 270, y, 48, INK, TextAlign::TOP_CENTER, BELL_HINT, 492, 3) * 48 + 14;
+  it.print(270, y, a.i64, INK, TextAlign::TOP_CENTER, icon::SOUTH);
+}
+
 inline void draw_home(Display &it) {
-  draw_stage(it);
-  int y0 = 424;
+  const bool bell_below = view == START && !hushed();
+  int y0 = 424, bottom = 936;
+  if (bell_below) {
+    y0 = 24;
+    if (!sign.empty()) {
+      text(it, a.r32, 270, y0, 40, INK, TextAlign::TOP_CENTER, sign, 470, 1);
+      y0 += 54;
+    }
+    const int hint = bell_hint_top(it);
+    draw_bell_hint(it, hint);
+    bottom = hint - 20;
+  } else {
+    draw_stage(it);
+  }
   if (!note.empty()) {
     const int n = count_lines(it, a.r32, note, 380, 2);
     const int h = std::max(48, n * 40) + 32;
@@ -497,7 +516,7 @@ inline void draw_home(Display &it) {
                 nullptr, GO_MESSAGE);
     return;
   }
-  const int th = (936 - y0 - 16) / 2, tw = 238;
+  const int th = (bottom - y0 - 16) / 2, tw = 238;
   struct Tile {
     const char *ico, *l1, *l2;
     int action;
@@ -737,12 +756,14 @@ inline void draw_drawing(Display &it) {
   hit(278, 810, 238, 110, SEND_DRAWING);
 }
 
-// A12/A13 (0.7.19): picture on top, the house's words under it, then the bell hint; one touch anywhere: the tiles
+// A12/A13 (0.7.19, layout and wording from the owner's canvas 21.10., 0.7.23): picture on top, the house's words under
+// it, a framed "Hier drücken für mehr Optionen", and "Bitte unten klingeln" with the arrow at the bottom, above the
+// brass button. One touch anywhere: the tiles.
 inline void draw_welcome(Display &it) {
   int y = 24;
   if (photo != nullptr) {
     const int w = photo->get_width(), h = photo->get_height();
-    it.image(24 + (492 - w) / 2, 24 + (536 - h) / 2, photo);
+    draw_photo(it, photo, 24 + (492 - w) / 2, 24 + (536 - h) / 2);
     y = 590;
   } else {
     it.print(270, 60, a.i120, INK, TextAlign::TOP_CENTER, icon::HELLO);
@@ -751,13 +772,11 @@ inline void draw_welcome(Display &it) {
   if (!greeting.empty())
     y += text(it, photo != nullptr ? a.b44 : a.b48, 270, y, photo != nullptr ? 52 : 60, INK, TextAlign::TOP_CENTER,
               greeting, 492, photo != nullptr ? 3 : 6) * (photo != nullptr ? 52 : 60) + 24;
-  const int hy = std::max(y, photo != nullptr ? 0 : 600);
-  if (hy <= 760) {
-    text(it, a.m32, 270, hy, 40, INK, TextAlign::TOP_CENTER, "Zum Klingeln den Messingknopf drücken", 492, 1);
-    it.print(270, hy + 44, a.i48, INK, TextAlign::TOP_CENTER, icon::SOUTH);
-  }
-  frame(it, 24, 830, 492, 96, 18, 3, INK, PAPER);
-  it.print(270, 878, a.m32, INK, TextAlign::CENTER, "Antippen: Nachricht, Malen …");
+  const int by = std::max(y, 726);  // three lines of words under a picture push the frame down to 770
+  frame(it, 24, by, 492, 55, 18, 3, INK, PAPER);
+  it.print(270, by + 28, a.m32, INK, TextAlign::CENTER, "Hier drücken für mehr Optionen");
+  it.print(270, 830, a.m32, INK, TextAlign::TOP_CENTER, "Bitte unten klingeln");
+  it.print(270, 884, a.i48, INK, TextAlign::TOP_CENTER, icon::SOUTH);
   hit(0, 0, 540, 960, WELCOME_AWAY);
 }
 
@@ -772,7 +791,9 @@ inline void draw_reply(Display &it) {
   const bool big = count_lines(it, a.m40, reply_text, 444, 8) <= room / 50;
   text(it, big ? a.m40 : a.r32, 48, top + 24, big ? 50 : 42, INK, TextAlign::TOP_LEFT, reply_text, 444,
        room / (big ? 50 : 42));
-  wide_button(it, 624, 180, true, icon::MIC, a.i64, a.m40, "Antworten", "einmal antippen, dann sprechen", SPEAK);
+  // "einmal antippen, dann sprechen" was 566 px wide and ran out of the button on both sides (canvas 21.10.); now as
+  // on the ring page
+  wide_button(it, 624, 180, true, icon::MIC, a.i64, a.m40, "Antworten", "einmal antippen", SPEAK);
   wide_button(it, 824, 100, false, icon::CLOSE, a.i48, a.m32, "Schließen", nullptr, REPLY_AWAY);
 }
 
