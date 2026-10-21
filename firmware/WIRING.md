@@ -225,8 +225,9 @@ bell's firmware (box dew point and margin are already in 0.3.23). On the bench t
 **Switch chosen (2026-10-21):** an **HW-532** module (FR120N, opto-isolated input that takes a 3.3 V signal; load side
 rated 5-30 V, so our 5 V rail is at its low end, enough for this foil) instead of a bare MOSFET on the board. Control
 from **bell GPIO16 (header pin 32)**, signal GND from pin 33 next to it; the module's supply from the 5 V rail; its output
-to the foil with the 73 °C fuse in series. Terminal names on the module still to be read off the module itself (sellers
-print PWM/GND and +/LOAD/- or LOAD+/LOAD-): the sheet comes after a photo of it.
+to the foil with the 73 °C fuse in series. Terminals (the owner's photo 21.10.): top **"+", "LOAD", "−"** (figure-eight
+pads, two holes each), bottom **"PWM", "GND"**. The foil goes between "+" and "LOAD"; "+" and "−" take 5 V and GND.
+Sheet: `bench/kasten-runde5-licht-heizung.svg` (wires H1–H6; the foil's leads carry 1 A: at least 0.25 mm²).
 **Governor in bell 0.3.26** (dry-run 21.10., foil not wired): slow PWM, 10 s period; heats when the box dew point margin
 falls below the target (default 6 K; margin 0 K = full) or the box gets colder than the minimum (default 3 °C; full 5 K
 below), never at 40 °C or more, never without valid readings (about 3 min after a restart), at most "Heater maximum power"
@@ -236,11 +237,13 @@ draw (4.82 W today); after wiring, a full-load test (heater 100 %, speaker test,
 ## 10a. Door light: firmware ready, strip not wired
 
 the owner's SK6812 RGBW strip (5 V, 60/m, 5050, pads +5V / DIN / DO / GND; from the RoomKey parts) under the canopy in the
-diffuser: 3 LEDs fit the 57 mm there (width to be checked against the 10 mm channel). **Data from bell GPIO15 (header
+diffuser; 10 mm wide (fits the channel). the owner bends it in waves over its flat side so 8–10 LEDs fit (never bend it
+sideways: 5050 joints and traces crack). **Data from bell GPIO15 (header
 pin 29), GND on pin 28 next to it**, +5V and GND from the distribution board; three wires through the cable hole under
 the diffuser. DIN wants >= 3.5 V at 5 V supply: 3.3 V usually works on a short wire, a 74AHCT125 makes it certain.
-Firmware: bell 0.3.27, light "Door light" (RGBW), off after a restart; about 1.2 W at full white. While it is on, the
-heater pauses (PoE budget).
+Firmware: bell 0.3.28, light "Door light" (RGBW, 10 LEDs), off after a restart; capped at 75 % (about 3 W at full
+white) until the full-load test. While it is on, the heater pauses (PoE budget). Wires L1–L3 on the round-5 sheet:
+5 V from B2, GND from A2, data from bell IO15 (right row, between a free GND and RUN).
 
 ## 11. Before the first power-on
 

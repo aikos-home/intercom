@@ -16,7 +16,7 @@ external_components:
 esphome:
   project:
     name: aikos-home.intercom-bell
-    version: "0.3.27-bridge"
+    version: "0.3.28-bridge"
 
 wifi:
   # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
@@ -167,19 +167,22 @@ number:
     entity_category: config
 
 # ── Door light (the owner 2026-10-21: "ich habe einen strip SK6812. lass uns einfach den nehmen"): his 5 V SK6812 RGBW strip
-#    (60/m, 5050, pads +5V/DIN/DO/GND) under the canopy in the diffuser, 3 LEDs fit the 57 mm there. Data from bell
-#    GPIO15 (header pin 29, GND on pin 28 next to it), 5 V from the distribution board. The strip wants >= 3.5 V on DIN;
-#    3.3 V works on a short wire, a 74AHCT125 makes it sure. About 1.2 W at full white: the heater pauses while it is on.
+#    (60/m, 5050, 10 mm, pads +5V/DIN/DO/GND) under the canopy in the diffuser; the owner bends it in waves (over its flat
+#    side) so 8-10 LEDs fit: num_leds 10 (addresses past the end of a shorter piece cost nothing). Data from bell GPIO15
+#    (right row in the box, ../WIRING.md §10a), 5 V and GND from the distribution board. DIN wants >= 3.5 V at 5 V:
+#    3.3 V works on a short wire, a 74AHCT125 makes it sure. 10 LEDs at full RGBW draw about 4 W: capped at 75 %
+#    (about 3 W) until the full-load test; the heater pauses while the light is on (PoE budget).
 light:
   - platform: esp32_rmt_led_strip
     id: door_light
     name: Door light
     icon: mdi:wall-sconce-flat
     pin: GPIO15
-    num_leds: 3
+    num_leds: 10
     chipset: SK6812
     rgb_order: GRB
     is_rgbw: true
+    color_correct: [75%, 75%, 75%, 75%]   # power cap until the full-load test
     default_transition_length: 1s
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:   # at once, not at the governor's next round (up to 30 s)
