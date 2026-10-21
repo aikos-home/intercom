@@ -233,6 +233,15 @@ below), never at 40 °C or more, never without valid readings (about 3 min after
 (default 60 %), and only while "Heater allowed" is on (off from the factory). Power: the foil roughly doubles the box's
 draw (4.82 W today); after wiring, a full-load test (heater 100 %, speaker test, screen page change) must show no restart.
 
+## 10a. Door light: firmware ready, strip not wired
+
+the owner's SK6812 RGBW strip (5 V, 60/m, 5050, pads +5V / DIN / DO / GND; from the RoomKey parts) under the canopy in the
+diffuser: 3 LEDs fit the 57 mm there (width to be checked against the 10 mm channel). **Data from bell GPIO15 (header
+pin 29), GND on pin 28 next to it**, +5V and GND from the distribution board; three wires through the cable hole under
+the diffuser. DIN wants >= 3.5 V at 5 V supply: 3.3 V usually works on a short wire, a 74AHCT125 makes it certain.
+Firmware: bell 0.3.27, light "Door light" (RGBW), off after a restart; about 1.2 W at full white. While it is on, the
+heater pauses (PoE budget).
+
 ## 11. Before the first power-on
 
 No power, multimeter on beep:

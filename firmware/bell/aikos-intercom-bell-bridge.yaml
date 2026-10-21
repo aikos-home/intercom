@@ -16,7 +16,7 @@ external_components:
 esphome:
   project:
     name: aikos-home.intercom-bell
-    version: "0.3.26-bridge"
+    version: "0.3.27-bridge"
 
 wifi:
   # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
@@ -166,12 +166,36 @@ number:
     restore_value: true
     entity_category: config
 
+# ── Door light (the owner 2026-10-21: "ich habe einen strip SK6812. lass uns einfach den nehmen"): his 5 V SK6812 RGBW strip
+#    (60/m, 5050, pads +5V/DIN/DO/GND) under the canopy in the diffuser, 3 LEDs fit the 57 mm there. Data from bell
+#    GPIO15 (header pin 29, GND on pin 28 next to it), 5 V from the distribution board. The strip wants >= 3.5 V on DIN;
+#    3.3 V works on a short wire, a 74AHCT125 makes it sure. About 1.2 W at full white: the heater pauses while it is on.
+light:
+  - platform: esp32_rmt_led_strip
+    id: door_light
+    name: Door light
+    icon: mdi:wall-sconce-flat
+    pin: GPIO15
+    num_leds: 3
+    chipset: SK6812
+    rgb_order: GRB
+    is_rgbw: true
+    default_transition_length: 1s
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:   # at once, not at the governor's next round (up to 30 s)
+      - output.set_level: {id: heater_out, level: 0%}
+      - sensor.template.publish: {id: heater_power, state: 0}
+
 interval:
   - interval: 30s
     then:
       - lambda: |-
           float duty = 0;
-          if (id(heater_allowed).state) {
+          // the PoE budget (802.3af, 4.82 W in the box today): heater (~5 W) and light (~1.2 W) never together
+          const bool light_on = id(door_light).current_values.is_on();
+          if (id(heater_allowed).state && light_on) {
+            ESP_LOGD("heater", "door light on: heater pauses");
+          } else if (id(heater_allowed).state) {
             const float t = id(box_temp).state, m = id(box_margin).state;
             if (std::isnan(t) || std::isnan(m)) {
               ESP_LOGW("heater", "no valid box readings: heater off");
