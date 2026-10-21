@@ -52,6 +52,8 @@ binary_sensor:
         return held;
       held = id(radar_target).state;
       return held;
+    on_state:   # the screen's own greeting (aikos-app A13) needs no HA: it follows this sensor directly
+      - lambda: door_ui::set_someone(x);
 
 sensor:
   - platform: ld2410

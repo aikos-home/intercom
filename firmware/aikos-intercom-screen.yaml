@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.17"
+    version: "0.7.18"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -64,6 +64,7 @@ esphome:
             door_ui::set_note(id(house_note).state);
             door_ui::set_targets(id(ring_targets).state);
             door_ui::set_quiet(id(quiet_hours).state);
+            door_ui::set_greeting(id(door_greeting).state);
 
 packages:
   radar: !include radar/ld2410.yaml   # presence radar LD2410C on the edge row RX/TX (box wiring 2026-10-20)
@@ -122,7 +123,7 @@ font:   # all text fonts carry Latin Core: names, notes and transcripts come fro
     glyphs: &ICONS ["\U0000efff", "\U0000f1e3", "\U0000e7f7", "\U0000f159", "\U0000f569", "\U0000f106", "\U0000e31d",
                     "\U0000e746", "\U0000e00a", "\U0000e91f", "\U0000e048", "\U0000e1b8", "\U0000e0d9", "\U0000e5c4",
                     "\U0000f233", "\U0000f0d3", "\U0000e163", "\U0000e5cd", "\U0000f0be", "\U0000e6d0", "\U0000e63e",
-                    "\U0000e86c", "\U0000e5ce", "\U0000e5cf"]
+                    "\U0000e86c", "\U0000e5ce", "\U0000e5cf", "\U0000e7f6", "\U0000e766"]
   - {file: "gfonts://Material+Symbols+Outlined", id: i64, size: 64, bpp: 4, glyphs: *ICONS}
   - {file: "gfonts://Material+Symbols+Outlined", id: i96, size: 96, bpp: 4, glyphs: *ICONS}
   - {file: "gfonts://Material+Symbols+Outlined", id: i120, size: 120, bpp: 4, glyphs: *ICONS}
@@ -204,6 +205,13 @@ interval:
             id(send_drawing).execute(d.width, d.height, d.scale, d.rle);
             door_ui::drawing_out.rle = std::string();   // the PSRAM copy is not needed any more
           }
+          // "Nachricht hinterlassen" for one resident (aikos-app A15): HA learns whom the recording is for
+          if (door_ui::message_start_request) {
+            door_ui::message_start_request = false;
+            if (!api::global_api_server->is_connected())
+              ESP_LOGW("ui", "message for '%s' while HA is away: it is kept for everyone", door_ui::message_target.c_str());
+            id(send_message_start).execute(door_ui::message_target);
+          }
           // "Bei jemandem klingeln": HA/aikos ring the picked person's keys (KR-R4)
           if (door_ui::ring_request) {
             door_ui::ring_request = false;
@@ -265,6 +273,16 @@ script:
             height: !lambda return to_string(h);
             scale: !lambda return to_string(scale);
             rle: !lambda return rle;
+  - id: send_message_start   # aikos-app A15: a message recording starts; `recipient` = the resident, "" = everyone
+    mode: queued
+    parameters:
+      target: string
+    then:
+      - homeassistant.event:
+          event: esphome.aikos_door_message
+          data:
+            recipient: !lambda return target;
+            source: screen
   - id: send_targeted_ring   # KR-R4: HA (tuerstation.yaml / later aikos) rings the keys of `target` ("" = everyone)
     mode: queued
     parameters:
@@ -409,6 +427,17 @@ text:
     entity_category: config
     on_value:
       - lambda: door_ui::set_targets(x);
+  - platform: template
+    id: door_greeting
+    name: Greeting              # aikos-app A13: shown on the stage while the radar sees someone; empty = none
+    mode: text
+    max_length: 120
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - lambda: door_ui::set_greeting(x);
 
 switch:
   - platform: template
@@ -459,6 +488,11 @@ binary_sensor:
     entity_id: binary_sensor.aikos_quiet_hours
     on_state:
       - lambda: door_ui::set_quiet(x || id(quiet_hours).state);
+  - platform: homeassistant   # aikos "Klingel stumm" (aikos-app A14): like quiet hours, nobody inside hears the bell
+    id: aikos_muted
+    entity_id: binary_sensor.aikos_bell_muted
+    on_state:
+      - lambda: door_ui::set_muted(x);
   - platform: homeassistant   # the talk computer has a call (a key held, or the visitor tapped "Sprechen")
     id: talk_in_call
     entity_id: binary_sensor.aikos_intercom_talk_in_call

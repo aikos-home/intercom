@@ -65,6 +65,8 @@ static const char *const CHECK = "\U0000f0be";
 static const char *const ERASER = "\U0000e6d0";
 static const char *const UP = "\U0000e5ce";    // expand_less
 static const char *const DOWN = "\U0000e5cf";  // expand_more
+static const char *const BELL_OFF = "\U0000e7f6";  // notifications_off: the bell is muted (aikos-app A14)
+static const char *const HELLO = "\U0000e766";     // waving_hand: the house's words for whoever comes (aikos-app A13)
 }  // namespace icon
 
 struct Assets {
@@ -92,6 +94,9 @@ static const uint32_t SPEAK_GRACE_MS = 8000;  // after "Sprechen" the call page 
 inline View view = START;
 inline uint32_t view_ms = 0, ring_ms = 0, last_touch_ms = 0, last_change_ms = 0, rec_ms = 0;
 inline bool waited = false, talking = false, quiet = false, sent_drawing = false;
+inline bool muted = false;    // aikos "Klingel stumm" (aikos-app A14): the door behaves as in quiet hours, own words
+inline bool someone = false;  // this screen's radar ("Someone at the door", with its boot and call masks)
+inline std::string greeting;  // aikos-app A13: the house's words for whoever comes; shown while the radar sees someone
 inline int rec_step = -1;
 inline uint32_t seen_transcript = 0;
 inline bool call_active = false, seen_call = false;  // a room key answered (HA: the talk computer's "In call")
@@ -105,6 +110,11 @@ inline bool message_on = false;        // "Nachricht hinterlassen" records: the 
 inline bool ring_request = false;      // "Bei jemandem klingeln": a targeted ring for HA/aikos (KR-R4)
 inline std::string ring_request_target;  // "" = everyone in the house, else a name from the ring targets
 inline bool drawing_request = false;   // "Malen -> Senden": the picture goes to HA (ui/drawing_send.h)
+// "Nachricht hinterlassen" for one resident (aikos-app A15, 0.7.18): whom the message is for, "" = everyone. Only that
+// person (and the superadmin) gets it; the glue tells HA at the start of the recording.
+inline std::string message_target;
+inline bool message_start_request = false;
+inline std::string suggest_target;  // rung "bei <Name>" in this visit: that name is offered first for the message
 inline aikos_drawing::Drawing drawing_out;
 // the call page's chat: messages [chat_first, n) are on the screen; latest = it follows new messages
 inline int chat_first = 0;
@@ -122,6 +132,7 @@ inline int last_x = 0, last_y = 0;
 static const int CANVAS_TOP = 133, CANVAS_BOTTOM = 686;
 
 inline bool is_home(View v) { return v == START || v == RINGING || v == CALL; }
+inline bool hushed() { return quiet || muted; }  // nobody inside hears the bell: offer the message at once
 
 // no flash only when the new picture mostly adds ink to the old one (v2: ringing swaps the tiles for two buttons)
 inline bool ink_only(View from, View to) { return from == to; }
@@ -137,6 +148,8 @@ inline void go(View v, uint32_t now, bool flash = false) {
   view = v;
   view_ms = now;
   full_needed = true;
+  if (v == START)
+    suggest_target.clear();  // the visit is over
   (page ? want_page : want_partial) = true;
   if (v != RECORDING)
     message_on = false;  // send, cancel, the time limit or a key answering: the recording is over
@@ -149,8 +162,9 @@ inline void changed() {
 // ---------------------------------------------------------------------------------------------- inputs
 inline void rang(uint32_t now) {  // the brass button (either path, first one)
   ring_ms = now;
-  waited = false;
+  waited = hushed();  // quiet hours or muted: nobody comes, the message is offered at once (KR-R11, A14)
   ring_target = "allen im Haus";
+  suggest_target.clear();
   go(RINGING, now);
 }
 
@@ -176,6 +190,33 @@ inline void set_note(const std::string &s) {
 inline void set_quiet(bool q) {  // the stage and a whole tile swap: a page change
   quiet = q;
   if (view == START) {
+    full_needed = true;
+    want_page = true;
+  }
+}
+inline void set_muted(bool m) {  // the stage and a whole tile swap: a page change
+  if (m == muted)
+    return;
+  muted = m;
+  if (view == START || view == RINGING) {
+    full_needed = true;
+    want_page = true;
+  }
+}
+// the greeting shows on the stage only while someone is there: appearing and going are page changes
+inline void set_greeting(const std::string &s) {
+  const bool was = someone && !greeting.empty();
+  greeting = s;
+  if (view == START && (was || (someone && !greeting.empty()))) {
+    full_needed = true;
+    want_page = true;
+  }
+}
+inline void set_someone(bool on) {
+  if (on == someone)
+    return;
+  someone = on;
+  if (view == START && !greeting.empty()) {
     full_needed = true;
     want_page = true;
   }
@@ -351,7 +392,7 @@ inline void wide_button(Display &it, int y, int h, bool filled, const char *ico,
 // ---------------------------------------------------------------------------------------------- pages
 inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
   const int top = 24, height = 380, W = 470;
-  if (view == RINGING) {
+  if (view == RINGING && !hushed()) {
     const std::string who = "bei " + ring_target;
     const std::string status = waited ? "Niemand kommt? Hinterlassen Sie gern eine Nachricht." : "Einen Moment bitte.";
     const int n_who = count_lines(it, a.r40, who, W, 2), n_st = count_lines(it, a.r32, status, W, 3);
@@ -363,14 +404,27 @@ inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
     y += 76;
     y += text(it, a.r40, 270, y, 48, INK, TextAlign::TOP_CENTER, who, W, 2) * 48 + 14;
     text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, status, W, 3);
-  } else if (quiet) {
-    const std::string s = "Die Klingel ist jetzt leise. Hinterlassen Sie gern eine Nachricht.";
+  } else if (view == START && someone && !greeting.empty()) {
+    // A13: the house's words for whoever comes (aikos sets them); the bell hint stays below, smaller
+    const std::string s = "Zum Klingeln den Messingknopf drücken";
+    const int n = count_lines(it, a.m40, greeting, W, 4);
+    const int h = 64 + 14 + n * 48 + 20 + 40 + 10 + 48;
+    int y = top + (height - h) / 2;
+    it.print(270, y, a.i64, INK, TextAlign::TOP_CENTER, icon::HELLO);
+    y += 78;
+    y += text(it, a.m40, 270, y, 48, INK, TextAlign::TOP_CENTER, greeting, W, 4) * 48 + 20;
+    text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, s, W, 1);
+    it.print(270, y + 50, a.i48, INK, TextAlign::TOP_CENTER, icon::SOUTH);
+  } else if (hushed()) {
+    // also right after a ring: the visitor learns that nobody hears it; the message is offered at once (KR-R11, A14)
+    const std::string s = muted ? "Die Klingel ist gerade stumm. Hinterlassen Sie gern eine Nachricht."
+                                : "Die Klingel ist jetzt leise. Hinterlassen Sie gern eine Nachricht.";
     const int n = count_lines(it, a.r32, s, W, 3);
     const int h = 96 + 14 + 56 + 14 + n * 40;
     int y = top + (height - h) / 2;
-    it.print(270, y, a.i96, INK, TextAlign::TOP_CENTER, icon::BEDTIME);
+    it.print(270, y, a.i96, INK, TextAlign::TOP_CENTER, muted ? icon::BELL_OFF : icon::BEDTIME);
     y += 110;
-    it.print(270, y, a.m48, INK, TextAlign::TOP_CENTER, "Ruhezeit");
+    it.print(270, y, a.m48, INK, TextAlign::TOP_CENTER, muted ? "Klingel stumm" : "Ruhezeit");
     y += 70;
     text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, s, W, 3);
   } else {
@@ -415,7 +469,7 @@ inline void draw_home(Display &it) {
                                 {icon::MIC, "Nachricht", "hinterlassen", GO_MESSAGE},
                                 {icon::DRAW, "Malen", nullptr, GO_DRAW},
                                 {icon::QR, "Für Freunde", nullptr, GO_FRIENDS}};
-  const bool msg_hot = (view == RINGING && waited) || (view == START && quiet);
+  const bool msg_hot = (view == RINGING && waited) || (view == START && hushed());
   for (int k = 0; k < 4; k++) {
     const int x = 24 + (k % 2) * (tw + 16), y = y0 + (k / 2) * (th + 16);
     const bool hot = k == 1 && msg_hot;
@@ -551,7 +605,34 @@ inline void draw_pick(Display &it) {
   }
 }
 
+// A15 (0.7.18): with more than one ring target the message page asks whom it is for; a tap on the name starts the
+// recording. The person rung in this visit is drawn filled (the likely choice).
+inline void draw_message_for(Display &it) {
+  back_button(it);
+  const int n = text(it, a.b44, 24, 134, 52, INK, TextAlign::TOP_LEFT, "Für wen ist die Nachricht?", 492, 2);
+  int y = 134 + n * 52 + 12;
+  const int m = text(it, a.r32, 24, y, 40, INK, TextAlign::TOP_LEFT,
+                     "Antippen startet die Aufnahme, höchstens 1 Minute.", 492, 2);
+  y += m * 40 + 20;
+  for (int k = 0; k < n_targets; k++) {
+    const bool hot = k > 0 && targets[k] == suggest_target;
+    const esphome::Color fg = hot ? PAPER : INK;
+    if (hot)
+      fill_round(it, 24, y, 492, 96, 18, INK);
+    else
+      frame(it, 24, y, 492, 96, 18, 3, INK, PAPER);
+    it.print(46, y + 48, a.i64, fg, TextAlign::CENTER_LEFT, k == 0 ? icon::GROUPS : icon::PERSON);
+    text(it, a.r40, 130, y + 24, 48, fg, TextAlign::TOP_LEFT, targets[k], 370, 1);
+    hit(24, y, 492, 96, RECORD, k);
+    y += 108;
+  }
+}
+
 inline void draw_message(Display &it) {
+  if (n_targets > 1) {
+    draw_message_for(it);
+    return;
+  }
   back_button(it);
   it.print(24, 138, a.i96, INK, TextAlign::TOP_LEFT, icon::VOICEMAIL);
   const int n = text(it, a.b48, 24, 252, 56, INK, TextAlign::TOP_LEFT, "Nachricht hinterlassen", 492, 2);
@@ -577,6 +658,8 @@ inline void draw_recording(Display &it) {
   it.print(24, 180, a.r32, INK, TextAlign::TOP_LEFT, buf);
   it.print(516, 180, a.r32, INK, TextAlign::TOP_RIGHT, "1:00");
   it.print(24, 236, a.r32, INK, TextAlign::TOP_LEFT, "Erkannt:");
+  if (!message_target.empty())
+    text(it, a.m32, 516, 236, 40, INK, TextAlign::TOP_RIGHT, "für " + message_target, 340, 1);
   frame(it, 24, 280, 492, 340, 18, 3, INK, PAPER);
   std::string said;  // the visitor's words of this recording, from the call log (the transcriber writes them)
   for (int i = 0; i < aikos_call::n_msgs; i++) {
@@ -594,8 +677,10 @@ inline void draw_recording(Display &it) {
 inline void draw_sent(Display &it) {
   it.print(270, 240, a.i120, INK, TextAlign::TOP_CENTER, icon::CHECK);
   it.print(270, 380, a.b60, INK, TextAlign::TOP_CENTER, "Danke!");
-  const int n = text(it, a.r40, 270, 470, 48, INK, TextAlign::TOP_CENTER,
-                     sent_drawing ? "Ihr Bild ist angekommen." : "Ihre Nachricht ist angekommen.", 492, 2);
+  const std::string done = sent_drawing            ? std::string("Ihr Bild ist angekommen.")
+                           : message_target.empty() ? std::string("Ihre Nachricht ist angekommen.")
+                                                    : "Ihre Nachricht für " + message_target + " ist angekommen.";
+  const int n = text(it, a.r40, 270, 470, 48, INK, TextAlign::TOP_CENTER, done, 492, 3);
   it.print(270, 470 + n * 48 + 40, a.r32, INK, TextAlign::TOP_CENTER, "Gleich wieder zum Start");
 }
 
@@ -664,12 +749,16 @@ inline void act(int action, int arg, uint32_t now) {
       ring_target = arg == 0 ? "allen im Haus" : targets[arg];
       ring_request_target = arg == 0 ? std::string() : targets[arg];
       ring_request = true;
+      suggest_target = ring_request_target;
       ring_ms = now;
-      waited = false;
+      waited = hushed();
       ESP_LOGI("ui", "targeted ring: %s", ring_target.c_str());
       go(RINGING, now);
       break;
     case RECORD:  // the talk computer opens the door mic: the words go to the transcriber and into the call log
+      message_target = (arg > 0 && arg < n_targets) ? targets[arg] : std::string();
+      message_start_request = true;
+      ESP_LOGI("ui", "message for: %s", message_target.empty() ? "everyone" : message_target.c_str());
       rec_ms = now;
       rec_step = -1;
       seen_rec_chat = aikos_call::chat_version;
