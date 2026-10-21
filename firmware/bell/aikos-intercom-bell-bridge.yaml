@@ -16,7 +16,7 @@ external_components:
 esphome:
   project:
     name: aikos-home.intercom-bell
-    version: "0.3.24-bridge"
+    version: "0.3.25-bridge"
 
 wifi:
   # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <vector>
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/sensor/sensor.h"
@@ -20,6 +21,9 @@ class AikosPeerGuard : public Component {
   void setup() override;
   void loop() override;
   void dump_config() override;
+  // TEST (box check 21.10.): the same reset pulse as for a hung peer, asked from outside (an HA action), to prove the
+  // reset wire. Counts in the peer's resets, but not against its hourly limit. False if no such peer or a pulse runs.
+  bool test_reset(const std::string &name);
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
 
  protected:

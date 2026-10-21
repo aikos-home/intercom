@@ -24,7 +24,7 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.24"
+    version: "0.7.25"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
     - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
@@ -83,6 +83,7 @@ wifi:
 
 # aikos H4 (03.10.): talk computer and bell bring each other back by wire (aikos_peer_guard).
 aikos_peer_guard:
+  id: peer_guard
   heartbeat_out: GPIO18          # -> bell GPIO38 (header pin 14)
   peers:
     - name: bell
@@ -165,6 +166,11 @@ api:
     # existing `key_state` (same host; 1 = in the call, 2 = holds the floor, refreshed at least every 3 s) and sends RTP
     # L16 16 kHz from exactly that ip:port to the door's UDP 5004. Refresh app_join at least every `ms` (<= 60 s);
     # an empty host or ms 0 ends it at once. No change to aikos_voice (frozen voice-v2.1.0).
+    # TEST (box check 21.10.): pull the bell's EN low for 200 ms over its reset wire (GPIO9 -> bell CHIP_UP), the way the
+    # guard does when the bell hangs. Proof: the bell's uptime starts again.
+    - action: test_reset_bell
+      then:
+        - lambda: id(peer_guard).test_reset("bell");
     - action: app_join
       variables:
         host: string

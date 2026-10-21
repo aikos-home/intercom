@@ -135,6 +135,11 @@ TX row, top to bottom: GND · TX · RX · **1** (28) · **2** (29) · 42 · 41 �
 toggles its heartbeat pin once per second; if the other's heartbeat stops for 30 s, it pulls the other's reset line low
 for 200 ms (at most 3 times an hour, never before it has seen a heartbeat, never in its first 2 minutes).
 
+**Proven in the box (2026-10-21):** heartbeats 20/21 both ways (the sensors "Talk computer heartbeat" on the bell and "Bell
+heartbeat" on the talk computer are on). Reset wires with the test actions `test_reset_talk` (bell, from 0.3.25) and
+`test_reset_bell` (talk computer, from 0.7.25), the same 200 ms pulse the guard sends to a hung peer: wire 19 restarted the
+talk computer (its values came back fresh), wire 22 restarted the bell (uptime 241 s -> 4 s).
+
 ## 5. Amplifier (MAX98357A) and speaker
 
 The amplifier sits on the back of the display carrier plate. Pins: LRC, BCLK, DIN, GAIN, SD, GND, Vin.

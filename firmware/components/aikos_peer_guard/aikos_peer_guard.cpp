@@ -112,6 +112,27 @@ void AikosPeerGuard::loop() {
   }
 }
 
+bool AikosPeerGuard::test_reset(const std::string &name) {
+  const uint32_t now = millis();
+  for (auto &p : this->peers_) {
+    if (name != p.name)
+      continue;
+    if (p.pulse_until_ms != 0)
+      return false;
+    ESP_LOGW(TAG, "TEST: resetting '%s' by wire (asked from outside)", p.name);
+    p.resets_total++;
+    p.reset_out->digital_write(false);  // pull its EN low
+    p.pulse_until_ms = now + PULSE_MS;
+    p.grace_until_ms = now + GRACE_MS;  // give it time to boot before judging again
+    p.last_edge_ms = now;
+    if (p.resets_sensor != nullptr)
+      p.resets_sensor->publish_state(p.resets_total);
+    return true;
+  }
+  ESP_LOGW(TAG, "TEST: no peer '%s'", name.c_str());
+  return false;
+}
+
 void AikosPeerGuard::dump_config() {
   ESP_LOGCONFIG(TAG, "aikos peer guard:");
   LOG_PIN("  Heartbeat out: ", this->heartbeat_out_);

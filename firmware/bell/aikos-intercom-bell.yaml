@@ -72,6 +72,7 @@ aikos_firmware:
 # aikos H4 (03.10.): bell and talk computer bring each other back by wire (aikos_peer_guard). Header pins: GPIO40 = pin 11,
 # GPIO39 = pin 12, GND = pin 13, GPIO38 = pin 14 (right row, PINOUT.md). In the safe firmware too.
 aikos_peer_guard:
+  id: peer_guard
   heartbeat_out: GPIO39          # -> talk computer GPIO8
   peers:
     - name: talk
@@ -115,6 +116,11 @@ api:
             const int ms = std::max(30, std::min(static_cast<int>(hold_ms), 10000));
             id(test_press_until) = (millis() + ms) | 1;
             ESP_LOGI("bell", "test press: %d ms", ms);
+    # TEST (box check 21.10.): pull the talk computer's EN low for 200 ms over its reset wire (GPIO40 -> talk RST), the way
+    # the guard does when the talk computer hangs. Proof: the talk computer's uptime starts again.
+    - action: test_reset_talk
+      then:
+        - lambda: id(peer_guard).test_reset("talk");
 
 ota:
   - platform: esphome
