@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.18"
+    version: "0.7.19"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -65,6 +65,28 @@ esphome:
             door_ui::set_targets(id(ring_targets).state);
             door_ui::set_quiet(id(quiet_hours).state);
             door_ui::set_greeting(id(door_greeting).state);
+
+# aikos-app A12: the resident's picture for the welcome page. HA makes it grey and at most 492x536 (ha-dev door_photo.py)
+# and serves it under /local with a random name (no token on a device at the door; the picture is public there anyway).
+http_request:
+  verify_ssl: false
+  timeout: 10s
+
+image:
+  - platform: online_image
+    id: door_photo
+    url: http://0.0.0.0/none.png   # the real address comes from "Photo URL" (restored at boot)
+    format: PNG
+    type: GRAYSCALE
+    update_interval: never
+    on_download_finished:
+      - lambda: |-
+          ESP_LOGI("ui", "picture loaded: %dx%d", id(door_photo).get_width(), id(door_photo).get_height());
+          door_ui::set_photo(id(door_photo));
+    on_error:
+      - lambda: |-
+          ESP_LOGW("ui", "picture could not be loaded");
+          door_ui::set_photo(nullptr);
 
 packages:
   radar: !include radar/ld2410.yaml   # presence radar LD2410C on the edge row RX/TX (box wiring 2026-10-20)
@@ -172,6 +194,16 @@ touchscreen:
       - lambda: door_ui::release();
 
 interval:
+  # aikos-app A12: the restored picture address is set before the network is up, and a download can fail: try again
+  # once a minute while there is an address but no picture
+  - interval: 60s
+    then:
+      - lambda: |-
+          const std::string url = id(door_photo_url).state;
+          if (!url.empty() && door_ui::photo == nullptr && network::is_connected()) {
+            id(door_photo).set_url(url);
+            id(door_photo).update();
+          }
   - interval: 20ms
     then:
       - lambda: |-
@@ -428,8 +460,26 @@ text:
     on_value:
       - lambda: door_ui::set_targets(x);
   - platform: template
+    id: door_photo_url
+    name: Photo URL             # aikos-app A12: a picture from HA (grey PNG, at most 492x536); empty = none
+    mode: text
+    max_length: 200
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
+    on_value:
+      - lambda: |-
+          door_ui::set_photo(nullptr);
+          if (x.empty()) {
+            id(door_photo).release();
+            return;
+          }
+          id(door_photo).set_url(x);
+          id(door_photo).update();
+  - platform: template
     id: door_greeting
-    name: Greeting              # aikos-app A13: shown on the stage while the radar sees someone; empty = none
+    name: Greeting              # aikos-app A13: the welcome page shows it while the radar sees someone; empty = none
     mode: text
     max_length: 120
     optimistic: true

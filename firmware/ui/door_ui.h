@@ -78,8 +78,9 @@ struct Assets {
 };
 inline Assets a;
 
-enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS };
-static const char *const VIEW_NAMES[] = {"start", "ringing", "call", "pick", "message", "recording", "sent", "draw", "friends"};
+enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS, WELCOME };
+static const char *const VIEW_NAMES[] = {"start",  "ringing", "call", "pick",    "message",
+                                         "recording", "sent", "draw", "friends", "welcome"};
 
 static const uint32_t WAIT_MS = 45000;        // ringing: offer the message after this
 static const uint32_t RING_SHOW_MS = 120000;  // ringing: back to rest after this
@@ -97,6 +98,10 @@ inline bool waited = false, talking = false, quiet = false, sent_drawing = false
 inline bool muted = false;    // aikos "Klingel stumm" (aikos-app A14): the door behaves as in quiet hours, own words
 inline bool someone = false;  // this screen's radar ("Someone at the door", with its boot and call masks)
 inline std::string greeting;  // aikos-app A13: the house's words for whoever comes; shown while the radar sees someone
+// aikos-app A12 (0.7.19): a resident's picture (HA makes it grey and small, the screen downloads it). the owner, 21.10.:
+// picture and greeting fill the whole screen while someone comes ("C Ganze Seite"); a touch or a ring brings the tiles.
+inline esphome::image::Image *photo = nullptr;  // set by the glue once a download finished, nullptr = none
+inline bool welcome_done = false;               // this visitor tapped it away: not again until the radar lets go
 inline int rec_step = -1;
 inline uint32_t seen_transcript = 0;
 inline bool call_active = false, seen_call = false;  // a room key answered (HA: the talk computer's "In call")
@@ -203,23 +208,35 @@ inline void set_muted(bool m) {  // the stage and a whole tile swap: a page chan
     want_page = true;
   }
 }
-// the greeting shows on the stage only while someone is there: appearing and going are page changes
+inline bool has_welcome() { return photo != nullptr || !greeting.empty(); }
+// the welcome page while someone is there: it comes on the rest page only, and goes with the visitor
+inline void update_welcome() {
+  const uint32_t now = millis();
+  if (view == START && someone && has_welcome() && !welcome_done)
+    go(WELCOME, now);
+  else if (view == WELCOME && (!someone || !has_welcome()))
+    go(START, now);
+  else if (view == WELCOME)
+    go(WELCOME, now, true);  // new picture or words: a new page
+}
 inline void set_greeting(const std::string &s) {
-  const bool was = someone && !greeting.empty();
+  if (s == greeting)
+    return;
   greeting = s;
-  if (view == START && (was || (someone && !greeting.empty()))) {
-    full_needed = true;
-    want_page = true;
-  }
+  update_welcome();
+}
+inline void set_photo(esphome::image::Image *img) {
+  photo = img;
+  update_welcome();
 }
 inline void set_someone(bool on) {
   if (on == someone)
     return;
   someone = on;
-  if (view == START && !greeting.empty()) {
-    full_needed = true;
-    want_page = true;
-  }
+  if (!on)
+    welcome_done = false;  // the next visitor gets the welcome again
+  if (view == START || view == WELCOME)
+    update_welcome();
 }
 inline void set_targets(const std::string &csv) {
   n_targets = 0;
@@ -323,7 +340,8 @@ enum Action {
   SEND_DRAWING,
   SPEAK,
   OLDER,
-  NEWEST
+  NEWEST,
+  WELCOME_AWAY
 };
 struct Hit {
   int x, y, w, h, action, arg;
@@ -404,17 +422,6 @@ inline void draw_stage(Display &it) {  // y 24 .. 404, centred column
     y += 76;
     y += text(it, a.r40, 270, y, 48, INK, TextAlign::TOP_CENTER, who, W, 2) * 48 + 14;
     text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, status, W, 3);
-  } else if (view == START && someone && !greeting.empty()) {
-    // A13: the house's words for whoever comes (aikos sets them); the bell hint stays below, smaller
-    const std::string s = "Zum Klingeln den Messingknopf drücken";
-    const int n = count_lines(it, a.m40, greeting, W, 4);
-    const int h = 64 + 14 + n * 48 + 20 + 40 + 10 + 48;
-    int y = top + (height - h) / 2;
-    it.print(270, y, a.i64, INK, TextAlign::TOP_CENTER, icon::HELLO);
-    y += 78;
-    y += text(it, a.m40, 270, y, 48, INK, TextAlign::TOP_CENTER, greeting, W, 4) * 48 + 20;
-    text(it, a.r32, 270, y, 40, INK, TextAlign::TOP_CENTER, s, W, 1);
-    it.print(270, y + 50, a.i48, INK, TextAlign::TOP_CENTER, icon::SOUTH);
   } else if (hushed()) {
     // also right after a ring: the visitor learns that nobody hears it; the message is offered at once (KR-R11, A14)
     const std::string s = muted ? "Die Klingel ist gerade stumm. Hinterlassen Sie gern eine Nachricht."
@@ -700,6 +707,30 @@ inline void draw_drawing(Display &it) {
   hit(278, 810, 238, 110, SEND_DRAWING);
 }
 
+// A12/A13 (0.7.19): picture on top, the house's words under it, then the bell hint; one touch anywhere: the tiles
+inline void draw_welcome(Display &it) {
+  int y = 24;
+  if (photo != nullptr) {
+    const int w = photo->get_width(), h = photo->get_height();
+    it.image(24 + (492 - w) / 2, 24 + (536 - h) / 2, photo);
+    y = 590;
+  } else {
+    it.print(270, 60, a.i120, INK, TextAlign::TOP_CENTER, icon::HELLO);
+    y = 230;
+  }
+  if (!greeting.empty())
+    y += text(it, photo != nullptr ? a.b44 : a.b48, 270, y, photo != nullptr ? 52 : 60, INK, TextAlign::TOP_CENTER,
+              greeting, 492, photo != nullptr ? 3 : 6) * (photo != nullptr ? 52 : 60) + 24;
+  const int hy = std::max(y, photo != nullptr ? 0 : 600);
+  if (hy <= 760) {
+    text(it, a.m32, 270, hy, 40, INK, TextAlign::TOP_CENTER, "Zum Klingeln den Messingknopf drücken", 492, 1);
+    it.print(270, hy + 44, a.i48, INK, TextAlign::TOP_CENTER, icon::SOUTH);
+  }
+  frame(it, 24, 830, 492, 96, 18, 3, INK, PAPER);
+  it.print(270, 878, a.m32, INK, TextAlign::CENTER, "Antippen: Nachricht, Malen …");
+  hit(0, 0, 540, 960, WELCOME_AWAY);
+}
+
 inline void draw_friends(Display &it) {
   back_button(it);
   it.print(24, 134, a.b48, INK, TextAlign::TOP_LEFT, "Für Freunde");
@@ -733,6 +764,7 @@ inline void draw(Display &it) {
     case SENT: draw_sent(it); break;
     case DRAW: draw_drawing(it); break;
     case FRIENDS: draw_friends(it); break;
+    case WELCOME: draw_welcome(it); break;
   }
 }
 
@@ -798,6 +830,10 @@ inline void act(int action, int arg, uint32_t now) {
       chat_first = newest_page_first();
       chat_latest = true;
       go(CALL, now, true);
+      break;
+    case WELCOME_AWAY:  // the visitor wants the tiles: not again in this visit
+      welcome_done = true;
+      go(START, now);
       break;
     default: break;
   }
