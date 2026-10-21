@@ -70,6 +70,36 @@ sensor:
     still_energy:
       name: Radar still energy
       entity_category: diagnostic
+    # Energy per range gate (gate n = n x 0.75 m from the radar), sent only while "Radar engineering mode" is on: the
+    # HA-dev test page (Klingel-Test > Radar) shows them as bars, to tune the thresholds below against false targets
+    # (20/21 Oct 2026: a still target at 75-118 cm in the empty room).
+    g0:
+      move_energy: {name: Radar gate 0 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 0 still energy, entity_category: diagnostic}
+    g1:
+      move_energy: {name: Radar gate 1 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 1 still energy, entity_category: diagnostic}
+    g2:
+      move_energy: {name: Radar gate 2 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 2 still energy, entity_category: diagnostic}
+    g3:
+      move_energy: {name: Radar gate 3 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 3 still energy, entity_category: diagnostic}
+    g4:
+      move_energy: {name: Radar gate 4 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 4 still energy, entity_category: diagnostic}
+    g5:
+      move_energy: {name: Radar gate 5 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 5 still energy, entity_category: diagnostic}
+    g6:
+      move_energy: {name: Radar gate 6 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 6 still energy, entity_category: diagnostic}
+    g7:
+      move_energy: {name: Radar gate 7 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 7 still energy, entity_category: diagnostic}
+    g8:
+      move_energy: {name: Radar gate 8 moving energy, entity_category: diagnostic}
+      still_energy: {name: Radar gate 8 still energy, entity_category: diagnostic}
 
 number:
   - platform: ld2410
@@ -80,6 +110,34 @@ number:
       name: Radar max moving gate
     max_still_distance_gate:
       name: Radar max still gate
+    # The radar keeps these in its own flash (defaults: moving 50/50/40/30/20/15/15/15/15, still 0/0/40/40/30/30/20/20/20).
+    g0:
+      move_threshold: {name: Radar gate 0 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 0 still threshold, entity_category: config}
+    g1:
+      move_threshold: {name: Radar gate 1 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 1 still threshold, entity_category: config}
+    g2:
+      move_threshold: {name: Radar gate 2 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 2 still threshold, entity_category: config}
+    g3:
+      move_threshold: {name: Radar gate 3 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 3 still threshold, entity_category: config}
+    g4:
+      move_threshold: {name: Radar gate 4 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 4 still threshold, entity_category: config}
+    g5:
+      move_threshold: {name: Radar gate 5 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 5 still threshold, entity_category: config}
+    g6:
+      move_threshold: {name: Radar gate 6 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 6 still threshold, entity_category: config}
+    g7:
+      move_threshold: {name: Radar gate 7 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 7 still threshold, entity_category: config}
+    g8:
+      move_threshold: {name: Radar gate 8 moving threshold, entity_category: config}
+      still_threshold: {name: Radar gate 8 still threshold, entity_category: config}
 
 switch:
   - platform: ld2410

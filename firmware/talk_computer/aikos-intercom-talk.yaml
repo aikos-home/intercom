@@ -24,7 +24,7 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.22"
+    version: "0.7.23"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
     - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
@@ -140,6 +140,13 @@ api:
     - action: call_end
       then:
         - aikos_voice.end
+    - action: test_message      # TEST: a "Nachricht hinterlassen" without a finger on the screen, ms of recording
+      variables:
+        ms: int
+      then:
+        - script.execute:
+            id: test_message_run
+            ms: !lambda return ms;
     # Speech output at the door (features/sprachausgabe.md §4/4a, 0.7.21): aikos allows one trusted source for a while,
     # then streams the sentence as RTP like a key (L16, 16 kHz, UDP 5004). It plays outside of calls too and needs no
     # held key; nothing else in the LAN is played. At most 60 s per allowance.
@@ -217,6 +224,11 @@ globals:
   - id: message_since        # when the screen's message recording began (0 = none): the keep-alive below stops after 75 s
     type: uint32_t
     initial_value: "0"
+  - id: key_ips              # the keys' addresses as the voice link gets them ("a,b"), without the recorder
+    type: std::string
+  - id: message_rec          # the screen records a message: the recorder gets the door mic too (R12, 0.7.23)
+    type: bool
+    initial_value: "false"
   - id: key_hosts            # key node name → its address, from "Key addresses"
     type: std::map<std::string, std::string>
 
@@ -242,7 +254,47 @@ script:
             }
             pos = comma + 1;
           }
-          id(voice).set_keys(ips);
+          id(key_ips) = ips;
+          id(apply_targets).execute();
+  # Who gets the door mic: the keys, and while the visitor records a message also the message recorder (R12: audio is
+  # kept only for "Nachricht hinterlassen", never for calls). The voice link mutes all targets while the door speaker plays.
+  - id: set_message_rec      # start/end of a message recording (screen or test): targets, HA sensor, keep-alive clock
+    mode: queued
+    parameters:
+      start: bool
+    then:
+      - lambda: |-
+          if (start == id(message_rec))
+            return;
+          id(message_rec) = start;
+          id(message_since) = start ? (millis() | 1) : 0;
+          id(message_recording).publish_state(start);
+          id(apply_targets).execute();
+          if (start) {
+            id(voice).visitor_speak();
+          } else if (id(voice).answered()) {
+            ESP_LOGI("talk", "message recording ended, a key answered: the call goes on");
+          } else if (id(voice).in_call()) {
+            ESP_LOGI("talk", "message recording ended: the call ends");
+            id(voice).end_call();
+          }
+  - id: test_message_run
+    mode: restart
+    parameters:
+      ms: int
+    then:
+      - script.execute: {id: set_message_rec, start: true}
+      - delay: !lambda return std::max(1000, std::min(ms, 60000));
+      - script.execute: {id: set_message_rec, start: false}
+  - id: apply_targets
+    mode: queued
+    then:
+      - lambda: |-
+          std::string t = id(key_ips);
+          const std::string rec = id(message_recorder).state;
+          if (id(message_rec) && !rec.empty())
+            t += (t.empty() ? "" : ",") + rec;
+          id(voice).set_keys(t);
   - id: key_message          # one packet from a key: refreshes its hold, its membership
     mode: queued
     max_runs: 16
@@ -359,17 +411,13 @@ binary_sensor:
     internal: false
     on_press:
       - logger.log: {format: "the visitor records a message", tag: talk, level: INFO}
-      - lambda: id(message_since) = millis() | 1;
-      - aikos_voice.visitor_speak
+      - script.execute: {id: set_message_rec, start: true}
     on_release:
-      - lambda: |-
-          id(message_since) = 0;
-          if (id(voice).answered()) {
-            ESP_LOGI("talk", "message recording ended, a key answered: the call goes on");
-          } else if (id(voice).in_call()) {
-            ESP_LOGI("talk", "message recording ended: the call ends");
-            id(voice).end_call();
-          }
+      - script.execute: {id: set_message_rec, start: false}
+  - platform: template           # a message is being recorded (screen or test action): HA starts the recorder on it
+    id: message_recording
+    name: Message recording
+    icon: mdi:voicemail
   - platform: aikos_voice
     in_call:
       name: In call
@@ -385,6 +433,16 @@ binary_sensor:
       entity_category: diagnostic
 
 text:
+  - platform: template
+    id: message_recorder
+    name: Message recorder        # host:port that records "Nachricht hinterlassen" (ha-dev record_message.py); empty = off
+    icon: mdi:record-rec
+    mode: text
+    max_length: 40
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    entity_category: config
   - platform: template
     id: transcriber
     name: Transcriber address    # host:port for the copy of the visitor's words; empty = none
@@ -424,7 +482,7 @@ interval:
           // pauses, would lose the rest of the message while the screen still shows "Aufnahme läuft". So while the
           // screen records, the silence window starts anew every second; a call that ended anyway starts again.
           // A screen that restarts mid-recording never sends the end: at most 75 s (the recording itself stops at 60 s).
-          if (!id(screen_message).state || id(message_since) == 0 || millis() - id(message_since) > 75000)
+          if (!id(message_rec) || id(message_since) == 0 || millis() - id(message_since) > 75000)
             return;
           if (id(voice).in_call())
             id(voice).speech(::aikos::voice::Role::DOOR);
