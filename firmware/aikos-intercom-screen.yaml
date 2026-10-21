@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.19"
+    version: "0.7.20"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -693,6 +693,16 @@ api:
     - action: wifi_test_leave_aikos   # bench test: to the house Wi-Fi now; must come back to "aikos" by itself
       then:
         - lambda: id(aikos_net)->test_leave_aikos();
+    # aikos-app A10/A11: a resident's written answer while the visitor is at the door. HA (later the app) checks that
+    # someone is there, speaks the text and logs it; the screen shows it and drops it when its radar lets go.
+    - action: show_reply
+      variables:
+        sender: string
+        message: string
+      then:
+        - lambda: |-
+            ESP_LOGI("ui", "answer from '%s' (%u characters)", sender.c_str(), (unsigned) message.size());
+            door_ui::show_reply(sender, message.substr(0, 400), millis());
 
 # aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
 # confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own

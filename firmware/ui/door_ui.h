@@ -78,9 +78,9 @@ struct Assets {
 };
 inline Assets a;
 
-enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS, WELCOME };
-static const char *const VIEW_NAMES[] = {"start",  "ringing", "call", "pick",    "message",
-                                         "recording", "sent", "draw", "friends", "welcome"};
+enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS, WELCOME, REPLY };
+static const char *const VIEW_NAMES[] = {"start", "ringing", "call",    "pick",    "message", "recording",
+                                         "sent",  "draw",    "friends", "welcome", "reply"};
 
 static const uint32_t WAIT_MS = 45000;        // ringing: offer the message after this
 static const uint32_t RING_SHOW_MS = 120000;  // ringing: back to rest after this
@@ -102,6 +102,12 @@ inline std::string greeting;  // aikos-app A13: the house's words for whoever co
 // picture and greeting fill the whole screen while someone comes ("C Ganze Seite"); a touch or a ring brings the tiles.
 inline esphome::image::Image *photo = nullptr;  // set by the glue once a download finished, nullptr = none
 inline bool welcome_done = false;               // this visitor tapped it away: not again until the radar lets go
+// aikos-app A10/A11 (0.7.20): a resident's written answer, shown (and spoken by HA) while the visitor is still there.
+// the owner, 21.10.: "live wenn er noch da ist, danach macht es keinen sinn" - so it goes when the radar lets go.
+inline std::string reply_from, reply_text;
+inline bool reply_pending = false;  // came during a call or a recording: shown when that is over
+static const uint32_t REPLY_MAX_MS = 180000, REPLY_GONE_MS = 15000;
+inline uint32_t gone_ms = 0;        // when the radar last let go (0 = someone is there)
 inline int rec_step = -1;
 inline uint32_t seen_transcript = 0;
 inline bool call_active = false, seen_call = false;  // a room key answered (HA: the talk computer's "In call")
@@ -233,10 +239,21 @@ inline void set_someone(bool on) {
   if (on == someone)
     return;
   someone = on;
+  gone_ms = on ? 0 : (millis() | 1);
   if (!on)
     welcome_done = false;  // the next visitor gets the welcome again
   if (view == START || view == WELCOME)
     update_welcome();
+}
+inline void show_reply(const std::string &from, const std::string &txt, uint32_t now) {
+  reply_from = from;
+  reply_text = txt;
+  if (view == CALL || view == RECORDING) {  // never cut a call or a recording short: after it
+    reply_pending = true;
+    return;
+  }
+  reply_pending = false;
+  go(REPLY, now, true);
 }
 inline void set_targets(const std::string &csv) {
   n_targets = 0;
@@ -341,7 +358,8 @@ enum Action {
   SPEAK,
   OLDER,
   NEWEST,
-  WELCOME_AWAY
+  WELCOME_AWAY,
+  REPLY_AWAY
 };
 struct Hit {
   int x, y, w, h, action, arg;
@@ -731,6 +749,21 @@ inline void draw_welcome(Display &it) {
   hit(0, 0, 540, 960, WELCOME_AWAY);
 }
 
+// A10/A11 (0.7.20): the answer from inside, big; the visitor can talk back at once ("Sprechen" of the ring page)
+inline void draw_reply(Display &it) {
+  it.print(24, 30, a.i96, INK, TextAlign::TOP_LEFT, icon::VOICE);
+  const std::string title = reply_from.empty() ? std::string("Antwort aus dem Haus") : "Antwort von " + reply_from;
+  const int n = text(it, a.b48, 24, 140, 56, INK, TextAlign::TOP_LEFT, title, 492, 2);
+  const int top = 140 + n * 56 + 20;
+  frame(it, 24, top, 492, 600 - top, 18, 3, INK, PAPER);
+  const int room = 600 - top - 48;  // big letters if the answer fits, else the smaller ones
+  const bool big = count_lines(it, a.m40, reply_text, 444, 8) <= room / 50;
+  text(it, big ? a.m40 : a.r32, 48, top + 24, big ? 50 : 42, INK, TextAlign::TOP_LEFT, reply_text, 444,
+       room / (big ? 50 : 42));
+  wide_button(it, 624, 180, true, icon::MIC, a.i64, a.m40, "Antworten", "einmal antippen, dann sprechen", SPEAK);
+  wide_button(it, 824, 100, false, icon::CLOSE, a.i48, a.m32, "Schließen", nullptr, REPLY_AWAY);
+}
+
 inline void draw_friends(Display &it) {
   back_button(it);
   it.print(24, 134, a.b48, INK, TextAlign::TOP_LEFT, "Für Freunde");
@@ -765,6 +798,7 @@ inline void draw(Display &it) {
     case DRAW: draw_drawing(it); break;
     case FRIENDS: draw_friends(it); break;
     case WELCOME: draw_welcome(it); break;
+    case REPLY: draw_reply(it); break;
   }
 }
 
@@ -833,6 +867,10 @@ inline void act(int action, int arg, uint32_t now) {
       break;
     case WELCOME_AWAY:  // the visitor wants the tiles: not again in this visit
       welcome_done = true;
+      go(START, now);
+      break;
+    case REPLY_AWAY:
+      welcome_done = true;  // the tiles, not the welcome page again
       go(START, now);
       break;
     default: break;
@@ -941,7 +979,17 @@ inline void tick(uint32_t now) {
       changed();  // new recognised words: they only add ink in the box
     }
   }
+  if (reply_pending && (view == START || view == WELCOME || view == SENT) && someone) {
+    reply_pending = false;
+    go(REPLY, now, true);
+  }
   switch (view) {
+    case REPLY:  // live only: it goes with the visitor (a short grace for radar gaps), and after 3 min at most
+      if ((gone_ms != 0 && now - gone_ms >= REPLY_GONE_MS) || now - view_ms >= REPLY_MAX_MS) {
+        welcome_done = true;
+        go(START, now);
+      }
+      break;
     case RINGING:
       if (!waited && now - ring_ms >= WAIT_MS) {
         waited = true;
