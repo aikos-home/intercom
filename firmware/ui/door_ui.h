@@ -162,6 +162,8 @@ inline void go(View v, uint32_t now, bool flash = false) {
     talking = false;  // only a new view lets go of the talk button, new words on the same page must not
     stroke = false;
   }
+  if (view == DRAW && v != DRAW)
+    demo::canvas_clear();  // the owner, 21.10.: whoever leaves "Malen" leaves no half picture for the next visitor
   view = v;
   view_ms = now;
   full_needed = true;
@@ -178,6 +180,12 @@ inline void changed() {
 
 // ---------------------------------------------------------------------------------------------- inputs
 inline void rang(uint32_t now) {  // the brass button (either path, first one)
+  if (view == RECORDING) {
+    // the owner, 21.10.: a press while recording keeps the recording (it used to end without a word). Inside it rings
+    // anyway (the bell's own path), and if someone answers, the recording turns into a call as before.
+    ESP_LOGI("ui", "rang during a recording: the recording goes on");
+    return;
+  }
   ring_ms = now;
   waited = hushed();  // quiet hours or muted: nobody comes, the message is offered at once (KR-R11, A14)
   ring_target = "allen im Haus";
@@ -509,6 +517,12 @@ inline void draw_home(Display &it) {
     it.print(44, y0 + h / 2, a.i48, INK, TextAlign::CENTER_LEFT, icon::PACKAGE);
     text(it, a.r32, 108, y0 + (h - n * 40) / 2 + 2, 40, INK, TextAlign::TOP_LEFT, note, 380, 2);
     y0 += h + 20;
+  }
+  if (view == RINGING && hushed()) {
+    // the owner, 21.10.: muted or quiet hours, nobody hears the bell, so no "Sprechen" into the void; only the message,
+    // big. A resident who answers from the app still turns it into a call (tick()).
+    wide_button(it, y0, 180, true, icon::VOICEMAIL, a.i64, a.m40, "Nachricht", "hinterlassen", GO_MESSAGE);
+    return;
   }
   if (view == RINGING) {  // v2 (the owner): "Sprechen" right after the ring; the message until someone answers
     wide_button(it, y0, 180, true, icon::MIC, a.i64, a.m40, "Sprechen", "einmal antippen", SPEAK);
