@@ -31,6 +31,9 @@ What it does:
 - **Announcement cue** (0.7.26, the owner 22.10.): the action `tts_cue` (no fields) plays a short soft two-note tone
   (660 → 990 Hz, 0.23 s, at the speech volume) at once, so the wait for a synthesised voice is not dead air; skipped
   during a call. aikos calls it when it starts making a sentence, then `allow_tts` and the stream as before.
+- **No echo in the transcript** (0.7.27): the door mic's copy to the transcriber pauses while the door speaker
+  plays (a key or the app holding, a TTS sentence, a tone) and 600 ms after. Before, a resident's words came out of the
+  speaker, into the door mic and back into the call log as the visitor's (aikos_voice mutes only the path to the keys).
 - **Message recorder** (0.7.23): `text` "Message recorder" (`host:port`) gets the door microphone in addition, and only
   while a message is recorded (audio is kept for "Nachricht hinterlassen" only, never for calls); `test_message {ms}`
   records one without a finger on the screen.

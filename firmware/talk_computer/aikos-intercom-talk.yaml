@@ -24,7 +24,7 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.26"
+    version: "0.7.27"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
     - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
@@ -271,6 +271,9 @@ globals:
   - id: app_until
     type: uint32_t
     initial_value: "0"
+  - id: transcriber_muted    # 0.7.27: the copy to the transcriber pauses while the door speaker plays (echo)
+    type: bool
+    initial_value: "false"
   - id: key_hosts            # key node name → its address, from "Key addresses"
     type: std::map<std::string, std::string>
 
@@ -530,8 +533,8 @@ text:
     restore_value: true
     initial_value: ""
     entity_category: config
-    on_value:
-      - aikos_voice.set_transcriber: !lambda return x;
+    on_value:   # while the echo pause runs, the new address is taken when it ends
+      - lambda: if (!id(transcriber_muted)) id(voice).set_transcriber(x);
   - platform: template
     id: key_addresses
     name: Key addresses          # "node=ip,node=ip"; set by aikos from sensor.aikos_people, kept in flash
@@ -555,6 +558,31 @@ interval:
             id(app_until) = 0;
             id(app_host) = "";
             id(apply_targets).execute();
+          }
+  - interval: 50ms                # 0.7.27: no echo in the transcript
+    then:
+      - lambda: |-
+          // the owner and Erika, 22.10.: his words from the app came back in the chat as the visitor's. The door mic is
+          // open for the whole call; aikos_voice mutes it towards the keys while the door speaker plays (R17.16), but
+          // its copy to the transcriber was never muted, so the speaker's sound went into the door mic and was written
+          // down as the visitor. Here that copy pauses while the speaker plays room audio, a TTS sentence or a tone,
+          // and 600 ms after (the 300 ms tail of R17.16 plus the front plate). aikos_voice itself is unchanged.
+          static uint32_t quiet_since = 0;
+          const uint32_t now = millis();
+          const bool plays = id(voice).remote_holding() || id(spk).has_buffered_data();
+          if (plays) {
+            quiet_since = 0;
+            if (!id(transcriber_muted)) {
+              id(transcriber_muted) = true;
+              id(voice).set_transcriber("");
+            }
+          } else if (id(transcriber_muted)) {
+            if (quiet_since == 0) {
+              quiet_since = now | 1;
+            } else if (now - quiet_since >= 600) {
+              id(transcriber_muted) = false;
+              id(voice).set_transcriber(id(transcriber).state);
+            }
           }
   - interval: 500ms               # the keys in the call, for the door screen's "Max und Erika hören zu"
     then:
