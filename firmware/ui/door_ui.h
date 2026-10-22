@@ -101,7 +101,7 @@ inline std::string greeting;  // aikos-app A13: the house's words for whoever co
 // aikos-app A12 (0.7.19): a resident's picture (HA makes it grey and small, the screen downloads it). the owner, 21.10.:
 // picture and greeting fill the whole screen while someone comes ("C Ganze Seite"); a touch or a ring brings the tiles.
 inline esphome::image::Image *photo = nullptr;  // set by the glue once a download finished, nullptr = none
-inline bool welcome_done = false;               // this visitor tapped it away: not again until the radar lets go
+inline bool welcome_done = false;               // this visitor tapped it away: not again in this visit (2 min rule)
 // aikos-app A10/A11 (0.7.20): a resident's written answer, shown (and spoken by HA) while the visitor is still there.
 // the owner, 21.10.: "live wenn er noch da ist, danach macht es keinen sinn" - so it goes when the radar lets go.
 inline std::string reply_from, reply_text;
@@ -229,12 +229,15 @@ inline void set_muted(bool m) {  // the stage and a whole tile swap: a page chan
   }
 }
 inline bool has_welcome() { return photo != nullptr || !greeting.empty(); }
-// the welcome page while someone is there: it comes on the rest page only, and goes with the visitor
+// the owner 22.10.: a visit ends only after 2 min without the radar (a 3 s gap while he sat still in front counted as
+// a new visit and the greeting played again). The welcome page itself goes 15 s after the radar lets go (tick()).
+static const uint32_t VISIT_GAP_MS = 120000, WELCOME_GONE_MS = 15000;
+// the words or the picture changed: the welcome page comes on the rest page only
 inline void update_welcome() {
   const uint32_t now = millis();
   if (view == START && someone && has_welcome() && !welcome_done)
     go(WELCOME, now);
-  else if (view == WELCOME && (!someone || !has_welcome()))
+  else if (view == WELCOME && !has_welcome())
     go(START, now);
   else if (view == WELCOME)
     go(WELCOME, now, true);  // new picture or words: a new page
@@ -254,10 +257,9 @@ inline void set_someone(bool on) {
     return;
   someone = on;
   gone_ms = on ? 0 : (millis() | 1);
-  if (!on)
-    welcome_done = false;  // the next visitor gets the welcome again
-  if (view == START || view == WELCOME)
-    update_welcome();
+  // back within the grace: the welcome page just stays; a new visit (see tick()) brings it again
+  if (on && view == START && has_welcome() && !welcome_done)
+    go(WELCOME, millis());
 }
 inline void set_test_pattern(int p, uint32_t now) {
   test_pattern = (p >= 1 && p <= 4) ? p : 0;
@@ -1062,6 +1064,10 @@ inline void tick(uint32_t now) {
   }
   if (test_pattern > 0 && now - test_ms >= 300000)
     set_test_pattern(0, now);
+  if (gone_ms != 0 && now - gone_ms >= VISIT_GAP_MS)
+    welcome_done = false;  // the visit is over: the next one gets the welcome page again
+  if (view == WELCOME && gone_ms != 0 && now - gone_ms >= WELCOME_GONE_MS)
+    go(START, now);
   if (reply_pending && (view == START || view == WELCOME || view == SENT) && someone) {
     reply_pending = false;
     go(REPLY, now, true);
