@@ -136,6 +136,8 @@ inline aikos_drawing::Drawing drawing_out;
 // the call page's chat: messages [chat_first, n) are on the screen; latest = it follows new messages
 inline int chat_first = 0;
 inline bool chat_latest = true, shown_answered = false, speak_request = false;
+// the owner 22.10.: a visitor who spoke after a ring and got no answer goes back to "Niemand kommt?", not to the start
+inline bool call_from_ring = false, call_answered = false;
 inline bool shown_placeholder = false;  // the call page shows the grey "Hier erscheint das Gespräch als Text."
 inline uint32_t seen_chat = 0, seen_status = 0, speak_ms = 0;
 inline uint32_t seen_rec_chat = 0;  // the chat as it was when the recording started: only newer text is "Erkannt"
@@ -927,6 +929,8 @@ inline void act(int action, int arg, uint32_t now) {
       want_page = true;
       break;
     case SPEAK:  // the visitor's one-time "Sprechen": straight to the talk computer, the call page at once
+      call_from_ring = view == RINGING;
+      call_answered = false;
       speak_request = true;
       speak_ms = now | 1;
       chat_first = newest_page_first();
@@ -993,6 +997,8 @@ inline void release() { stroke = false; }
 // ---------------------------------------------------------------------------------------------- time
 inline void tick(uint32_t now) {
   call_active = (direct_ms != 0 && now - direct_ms < DIRECT_FRESH_MS) ? direct_call : ha_call;
+  if (call_active && aikos_call::answered)
+    call_answered = true;
   // a call at the door (a key held, or the visitor tapped "Sprechen"): the call page; its end: back to the start
   if (call_active && !seen_call) {
     seen_call = true;
@@ -1005,7 +1011,14 @@ inline void tick(uint32_t now) {
     seen_call = false;
     if (view == CALL && (speak_ms == 0 || now - speak_ms >= SPEAK_GRACE_MS)) {
       speak_ms = 0;
-      go(START, now);
+      // nobody answered (the call ended after its silence time): "Niemand kommt?" with the message filled and
+      // "Sprechen" for a second try, until 2 min after the ring; the words are in the call log already
+      if (call_from_ring && !call_answered && ring_ms != 0 && now - ring_ms < RING_SHOW_MS) {
+        waited = true;
+        go(RINGING, now);
+      } else {
+        go(START, now);
+      }
     }
   }
   if (call_active)
