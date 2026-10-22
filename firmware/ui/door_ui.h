@@ -84,7 +84,8 @@ enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS,
 static const char *const VIEW_NAMES[] = {"start", "ringing", "call",    "pick",    "message", "recording",
                                          "sent",  "draw",    "friends", "welcome", "reply",   "whatsapp"};
 
-static const uint32_t WAIT_MS = 45000;        // ringing: offer the message after this
+// ringing: "Niemand kommt?" with the message and, if set, WhatsApp after this (the owner 22.10.: 30 s, was 45 s)
+static const uint32_t WAIT_MS = 30000;
 static const uint32_t RING_SHOW_MS = 120000;  // ringing: back to rest after this
 static const uint32_t SUBPAGE_IDLE_MS = 60000;
 static const uint32_t REC_MAX_MS = 60000;
@@ -532,6 +533,13 @@ inline void draw_home(Display &it) {
     // the owner 22.10.: with the bell muted (not in quiet hours) the visitor can also reach him on WhatsApp
     if (muted && a.whatsapp != nullptr)
       wide_button(it, y0 + 200, 110, false, icon::CHAT, a.i48, a.m32, "Auf WhatsApp kontaktieren", nullptr, GO_WHATSAPP);
+    return;
+  }
+  if (view == RINGING && waited && a.whatsapp != nullptr) {
+    // the owner 22.10.: 30 s without an answer from a phone or a RoomKey: WhatsApp as well; three buttons in 380 px
+    wide_button(it, y0, 150, true, icon::MIC, a.i64, a.m40, "Sprechen", "einmal antippen", SPEAK);
+    wide_button(it, y0 + 166, 100, true, icon::VOICEMAIL, a.i48, a.m32, "Nachricht hinterlassen", nullptr, GO_MESSAGE);
+    wide_button(it, y0 + 282, 98, false, icon::CHAT, a.i48, a.m32, "Auf WhatsApp kontaktieren", nullptr, GO_WHATSAPP);
     return;
   }
   if (view == RINGING) {  // v2 (the owner): "Sprechen" right after the ring; the message until someone answers
@@ -1122,7 +1130,10 @@ inline void tick(uint32_t now) {
     case RINGING:
       if (!waited && now - ring_ms >= WAIT_MS) {
         waited = true;
-        changed();
+        if (a.whatsapp != nullptr)
+          go(RINGING, now, true);  // the buttons change size: a new page
+        else
+          changed();
       }
       if (now - ring_ms >= RING_SHOW_MS)
         go(START, now);
