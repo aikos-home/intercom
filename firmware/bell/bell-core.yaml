@@ -4,6 +4,9 @@
 # Contract: the HA binary sensor with object id doorbell_button (rename the ESPHome entity once in the
 # HA entity registry).
 
+substitutions:
+  net_watchdog_on: "true"   # default; a board or test file may switch it off
+
 globals:
   - id: line_samples
     type: uint32_t
@@ -17,12 +20,17 @@ globals:
   - id: press_count
     type: uint32_t
     initial_value: "0"
+  - id: test_press_until   # TEST: millis() until which a test press holds the button (0 = none); see the board file
+    type: uint32_t
+    initial_value: "0"
 
 # A signal wire that falls off must look like "cable cut", never like a press: a floating ADC pin
 # reads near 0 V (= pressed). The chip's weak internal pull-up (~45 kΩ, parallel to the 10 kΩ) pulls
 # a loose pin to 3.3 V instead. The ADC driver resets the pad, so switch it on after setup.
 # Shifts the levels a little (idle ~1.9 V, pressed ~0.36 V); the thresholds keep wide margins.
 esphome:
+  includes:
+    - net_watchdog.h
   on_boot:
     priority: -100
     then:
@@ -42,6 +50,17 @@ interval:
       - lambda: |-
           id(line_rate).publish_state(id(line_samples) / 10.0f);
           id(line_samples) = 0;
+  # Network watchdog (2026-10-01): the link once stayed "up" while nothing could be sent, until a manual reset.
+  # A doorbell must come back by itself: 30 s of failed sends with the link up = restart (~2 s). See net_watchdog.h.
+  - interval: 5s
+    then:
+      - lambda: |-
+          if (!${net_watchdog_on})
+            return;  // off in the aikos Wi-Fi bench test (aikos-intercom-bell-aptest.yaml)
+          if (net_watchdog::check(network::is_connected())) {
+            ESP_LOGE("netdog", "network dead for 30 s with the link up: restarting");
+            App.reboot();  // NOT safe_reboot(): that marks the running image good and clears the boot counter (H4)
+          }
 
 # ── The line, sampled every millisecond. Each sample drives the button directly (no polling in
 #    between), so a press is seen within ~1 ms, and even a very brief contact is caught.
@@ -75,7 +94,15 @@ sensor:
             // counted one press twice. Pressed below th_pressed, released only above th_released.
             static bool pressed = false;
             pressed = pressed ? (x < ${th_released}) : (x < ${th_pressed});
-            id(doorbell_button).publish_state(pressed);
+            // TEST: a test press (API action test_press) holds the button like a closed contact, so it runs the very
+            // same path as a real press (filters, counter, ringing, direct ring path, HA event)
+            bool test = false;
+            if (id(test_press_until) != 0) {
+              test = static_cast<int32_t>(millis() - id(test_press_until)) < 0;
+              if (!test)
+                id(test_press_until) = 0;
+            }
+            id(doorbell_button).publish_state(pressed || test);
             id(line_cut).publish_state(x > ${th_cut});
             id(line_shorted).publish_state(pressed);
 
@@ -128,7 +155,7 @@ binary_sensor:
     name: Doorbell button
     icon: mdi:doorbell
     filters:
-      - delayed_off: 20ms   # ride through contact chatter; short, so fast presses stay separate
+      - delayed_off: 60ms   # ride through contact chatter: the brass contact opened for 29-48 ms inside one press (2026-10-04), real storm presses were >= 68 ms apart
     on_press:
       - lambda: |-
           id(press_ms) = millis();
@@ -186,6 +213,15 @@ text_sensor:
     ip_address:
       name: IP address
       entity_category: diagnostic
+
+# aikos H4 (03.10.): a restart must not mark a new firmware good. ESPHome's default (boot_is_good_on_shutdown: true)
+# confirms the running image and clears the boot-loop counter on every orderly restart - also on a restart by our own
+# guards, which would defeat the bootloader's rollback to the previous firmware.
+safe_mode:
+  boot_is_good_on_shutdown: false
+  # H4 stage 2: our health check confirms the firmware after 2 min healthy; this is only the upper bound
+  boot_is_good_after: 60min
+  num_attempts: 5   # H4 stage 4: 5 failed boots in a row -> safe mode
 
 button:
   - platform: restart

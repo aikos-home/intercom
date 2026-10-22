@@ -80,13 +80,18 @@ def main():
         low = text.lower()
         for a in allowed:
             low = low.replace(a, " " * len(a))
+        # the built-in checks see the same blanks (keeps the original case elsewhere): an allowed phrase like a
+        # SoftAP default address or a product entity id is allowed everywhere
+        blank = text
+        for a in allowed:
+            blank = re.sub(re.escape(a), lambda m: " " * len(m.group(0)), blank, flags=re.IGNORECASE)
         for t, rx in patterns:
             for m in rx.finditer(low):
                 line = low.count("\n", 0, m.start()) + 1
                 print(f"{rel}:{line}: denylisted term '{t}'")
                 hits += 1
         for name, rx in BUILTIN.items():
-            for m in rx.finditer(text):
+            for m in rx.finditer(blank):
                 if name == "e-mail address" and m.group(0).lower() in ALLOWED_EMAILS:
                     continue
                 line = text.count("\n", 0, m.start()) + 1

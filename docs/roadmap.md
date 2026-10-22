@@ -1,18 +1,13 @@
 # Roadmap
 
-State: 2026-09-29. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
+State: 2026-10-20. Generated from `explorer/skeleton.json` and `explorer/texts.json`;
 the interactive version is the roadmap section of the [explorer](../explorer/).
 
 `[x]` done · `[~]` under way · `[ ]` to do · `◆` a decision that must be locked in
 
 ## Must-lock-ins
 
-- ◆ Lock in: splitter 12 V or 5 V (it decides the heater and its switch) (M1)
-- ◆ Lock in: the box's inside size (the 12 V splitter alone is 104 × 82 × 32 mm) (M2)
-- ◆ Lock in: full duplex or walkie-talkie, after tuning the echo (M3)
 - ◆ Lock in: which extra audio features (voice messages, push-to-talk into the house) (M3)
-- ◆ Lock in: flush in the wall (cut into the insulation) or on the wall (printed box inside a brass housing) (M4)
-- ◆ Lock in: box material (ABS is here for test boxes; ABS and ASA warp in large parts on an open printer, PETG is the alternative) (M4)
 
 ## M0 · Concept and architecture
 
@@ -29,85 +24,83 @@ Decide what the device is before buying and printing: the front design, the part
 
 ## M1 · All hardware on the table
 
-**Now** · 2 of 5 tasks done
+**Now** · 3 of 4 tasks done
 
 Nothing can be measured, fitted or programmed for real until every part of the final build is here.
 
 Needs: M0 Concept and architecture
 
-- [ ] ◆ Lock in: splitter 12 V or 5 V (it decides the heater and its switch)
-- [ ] Place the order: cable, cable gland, heater, seals, small parts
-- [x] In hand: doorbell and talk computers, microphones, amplifier, speaker, 12→5 V converter, level shifter, climate sensor, heater switch, USB-serial adapter, thermal fuses
-- [x] Everything ordered so far has arrived (the screen computer last, 29 Sep)
-- [ ] Bench checks on arrival: touch chip ✓ (GT911, 29 Sep), LED strip really RGBW, heater switch triggers at 3.3 V
+- [x] Power path: the doorbell computer's PoE module feeds the box (heater load test passed, 9.37 W)
+- [x] In hand: all three computers, microphone, amplifier, speaker, both climate sensors, radar, heater pad, thermal fuses, level shifter
+- [x] Bench checks on arrival: touch chip GT911, real BME280, heater on PoE
+- [ ] Still to buy: a logic-level MOSFET, the COB LED strip, the outdoor cable
 
 *Done when:* Every part of the final build is here and identified.
 
 ## M2 · Measure and alpha print
 
-**Next** · 0 of 5 tasks done
+**Done** · 5 of 5 tasks done
 
 Find out whether everything fits before designing the real box: first the parts alone, then with every cable.
 
 Needs: M1 All hardware on the table
 
-- [ ] Measure everything the makers don't publish: display ✓ (holes, glass, stack, 29 Sep), doorbell computer, microphone, splitter
-- [ ] Count every cable and connector that enters the box
-- [ ] Alpha print 1: all parts in place, no cables
-- [ ] Alpha print 2: the same with all the internal wiring
-- [ ] ◆ Lock in: the box's inside size (the 12 V splitter alone is 104 × 82 × 32 mm)
+- [x] Measure what makers don't publish: display, doorbell computer, talk computer, microphone, amplifier, SHT31, radar
+- [x] Count the cables entering the box: one network cable; service USB through the bottom
+- [x] Alpha print v2: all parts in place, surface-mounted on the door frame (12–13 Oct)
+- [x] Box v3 (v3.0–v3.7): every part and every cable fits, with reserve
+- [x] Box size locked: 92 × 252 × 60 mm, on the wall (the door frame)
 
 *Done when:* Every part and every cable fits in a printed box, and the number of cables entering it is final.
 
 ## M3 · Bench build and software
 
-**Now** · 0 of 8 tasks done
+**Now** · 5 of 9 tasks done
 
-Wire everything together on the desk and build the software until the experience at the door and on the phone is release quality. The first two steps can start today.
+Wire everything together and build the software until the experience at the door and in the house is release quality.
 
 Needs: M1 All hardware on the table
 
-- [ ] Phone side first: answer a test call from a notification (no door hardware needed)
-- [ ] Doorbell on the doorbell computer: all three line states, 20 of 20 presses on the phone in under 1 s
-- [ ] Screen pages change on a ring; WiFi signal measured in a mock box behind metal
-- [ ] Talk, one direction at a time (walkie-talkie)
-- [ ] ◆ Lock in: full duplex or walkie-talkie, after tuning the echo
+- [x] Doorbell: all three line states; storm ringing 20 of 20 at the bell, in Home Assistant and on the screen
+- [x] Screen pages change on a ring; Wi-Fi in the box (−29 dBm from the doorbell computer's own access point)
+- [x] Talk between the door and a room key, with transcripts on the screen
+- [x] Duplex settled: the door arbitrates, its microphone is muted toward the keys while its speaker plays
+- [x] One cable and the power rail: 4.82 W in the box, 9.37 W with the heater on the bench
+- [~] Climate sensors and dew point in the firmware (written), the heater control and its switch
+- [~] Radar in the screen firmware (written); light under the roof
 - [ ] ◆ Lock in: which extra audio features (voice messages, push-to-talk into the house)
-- [ ] (waiting) One cable, power rail, heater and its power limit; measure the real PoE draw (waits for the splitter)
-- [ ] UX until release quality: screen pages, light, sounds, the flow on the phone
+- [~] UX until release quality: screen pages, light, sounds
 
-*Done when:* The desk setup does everything at release quality, and the measured power stays within 802.3af.
+*Done when:* The device does everything at release quality, and the measured power stays within 802.3af.
 
 ## M4 · Watertightness proof of concept
 
-**Now** · 0 of 7 tasks done
+**Now** · 3 of 5 tasks done
 
-Prove that the printed box, a steel bracket and a metal plate can be sealed, whichever way the box is mounted. Exploratory: it runs alongside everything else.
+Prove that the printed box, the steel sheet and the brass can be sealed. Runs alongside everything else.
 
 Needs: M0 Concept and architecture
 
-- [ ] ◆ Lock in: flush in the wall (cut into the insulation) or on the wall (printed box inside a brass housing)
-- [ ] Design and source the steel bracket the brass plate screws onto
-- [ ] Test plate: flat, no bends, no engraving, but the real cut-outs
-- [ ] Seals: 2 mm gasket cord, button O-ring, mic membranes, cable gland, pressure vent
-- [ ] ◆ Lock in: box material (ABS is here for test boxes; ABS and ASA warp in large parts on an open printer, PETG is the alternative)
-- [ ] The grille cavity drains outwards (the CAD slope is currently the wrong way round)
-- [ ] Water test of a sealed test box: hose or shower, dry inside afterwards
+- [x] Mounting locked: surface-mounted on the solid wooden door frame
+- [x] Box material locked: PETG (prints well on an open printer)
+- [x] The steel sheet as the water plane, the brass on top; printed stand-ins in v3
+- [~] Seals: silicone bead, O-ring at every screw, button O-ring, mic membrane, split cable gland
+- [ ] Water test of the sealed box: hose or shower, dry inside afterwards
 
-*Done when:* A test box with bracket and test plate stays dry inside in a repeatable water test, and the sealing recipe is written down.
+*Done when:* The box stays dry inside in a repeatable water test, and the sealing recipe is written down.
 
 ## M5 · Beta box on the desk
 
-**Later** · 0 of 4 tasks done
+**Now** · 2 of 4 tasks done
 
-The complete device in its real box, with the steel bracket and a dummy plate, running on the desk over Ethernet. Not watertight yet.
+The complete device in its real box, running on the desk over the one cable. Not watertight yet.
 
 Needs: M2 Measure and alpha print, M3 Bench build and software, M4 Watertightness proof of concept (bracket and dummy plate)
 
-- [ ] Print the beta box from what the alpha prints showed
-- [ ] Fit the steel bracket and a dummy plate (flat, same cut-outs)
-- [ ] All inside wiring finished; the wiring to the outside is settled
-- [ ] Two weeks on the desk over Ethernet: scripted rings and calls, 20 PoE power cycles, no unexpected reboot of the doorbell computer
+- [x] Print the box from what the alpha prints showed (v3.7)
+- [x] All inside wiring soldered, with reserve; first power-on in the box (20 Oct)
+- [ ] Fit the steel and brass stand-ins with everything running
+- [ ] Two weeks on the desk: scripted rings and calls, 20 PoE power cycles, no unexpected reboot
 
 *Done when:* The whole device runs in its box for two weeks without a surprise.
 
@@ -115,15 +108,15 @@ Needs: M2 Measure and alpha print, M3 Bench build and software, M4 Watertightnes
 
 **Later** · 0 of 5 tasks done
 
-Bring the sealing lessons into the proven beta design and order the real brass front.
+Bring the lessons of v3 and the water test into the final box and order the real metal front.
 
 Needs: M5 Beta box on the desk, M4 Watertightness proof of concept
 
-- [ ] Apply the sealing recipe to the beta design
-- [ ] Order the real brass front from a metal shop (laser-cut, bent, engraved)
-- [ ] Final print in the chosen material
+- [ ] Apply the findings of v3 and the water test: the v4 box, without glued parts
+- [ ] Order the steel and brass front from a metal shop (cut, bent, engraved)
+- [ ] Final print
 - [ ] Water test of the complete device
-- [ ] Freezer cold start: heater, screen and splitter come up in frost
+- [ ] Freezer cold start: heater, screen and PoE module come up in frost
 
 *Done when:* The finished device passes the water test and the cold start.
 

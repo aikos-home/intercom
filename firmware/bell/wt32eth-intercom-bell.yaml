@@ -1,3 +1,4 @@
+# Legacy (2026-09-30): the WT32-ETH01 is not used; kept for the record under its old name.
 # Intercom bell computer (WT32-ETH01, silkscreen "ESP32-ETH01 V1.4"), stage 1 firmware (2026-09-30).
 # Device name scheme <board>-<system>-<role>.
 # Job: read the brass button over a supervised line and report EVERY press, as fast as possible

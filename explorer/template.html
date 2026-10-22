@@ -489,9 +489,9 @@ const SK = DATA.skeleton, LY = DATA.layout, TX = DATA.texts || {};
 const UI = {
 en:{
   repo:'Source on GitHub', kicker:'Open-hardware door intercom · ESP32 · ESPHome · Home Assistant',
-  lede:'A doorbell intercom made from three ESP32 boards, an e-paper touch screen and one bent brass sheet, set flush into an insulated facade and run by Home Assistant. This map shows every part, every wire and every solder joint, and marks what is still undecided.',
+  lede:'A doorbell intercom made from three ESP32 boards, an e-paper touch screen and a brass front beside the door, on one PoE cable and run by Home Assistant. This map shows every part, every wire and every solder joint, and marks what is still undecided.',
   ctaRing:'▶ Follow a ring', ctaMap:'Explore the map ↓', plateProto:'Prototype · 2026',
-  plate:[['Supply','PoE · one cable'],['Computers','3 × ESP32 (bell · talk · screen)'],['Screen','4.7″ e-paper · touch'],['Front','brass 2 mm · 100 × 260'],['Firmware','ESPHome'],['Camera','none']],
+  plate:[['Supply','PoE · one cable'],['Computers','3 × ESP32 (bell · talk · screen)'],['Screen','4.7″ e-paper · touch'],['Front','steel + brass · 100 × 260'],['Firmware','ESPHome'],['Camera','none']],
   pOverview:'Overview', pPower:'Power', pData:'Data', pMech:'Mounting', pAll:'All',
   tgJoints:'Joints & solder spots', tgPlanned:'Planned features',
   hintMouse:'click a part or wire · drag to pan · Ctrl + scroll to zoom', hintTouch:'tap a part or wire · pinch to zoom',
@@ -510,7 +510,7 @@ en:{
   lgDecided:'wire, decided', lgUndecided:'not decided yet', lgNet:'over the network', lgRadio:'radio', lgJoint:'joint', lgSolder:'solder', lgScrew:'screw terminal', lgPlug:'plug / pin', lgWago:'lever clamp', lgBar:'connected to a bar',
   masonry:'Masonry', insulation:'Insulation 14 cm', boxSub:'printed · sealed · heated', frontSub:'outside · 2 mm brass',
   st:{existing:'already there',in_hand:'in hand',in_mail:'in the mail',to_buy:'to buy',pending:'decision pending',planned:'planned',printed:'printed prototype'},
-  zones:{internet:'Internet',house:'House',technikraum:'Technical room',wall:'Wall',box:'Box in the wall',front:'Brass front'},
+  zones:{internet:'Internet',house:'House',technikraum:'Technical room',wall:'Wall',box:'Box at the door',front:'Brass front'},
   layers:{mains:'Mains 230 V',poe:'PoE',ethernet:'Ethernet',wifi:'WiFi',v12:'12 V',v5:'5 V',v3:'3.3 V',gnd:'Ground',earth:'Earth',i2c:'I²C',i2s:'I²S audio',gpio:'Control lines',button:'Bell line',speaker:'Speaker',software:'Software links',mech:'Mounting & sealing'},
   layerHints:{
     mains:'Household 230 V, indoors only. It feeds the UPS, and the UPS feeds the switch.',
@@ -542,9 +542,9 @@ en:{
 },
 de:{
   repo:'Quellcode auf GitHub', kicker:'Offene Türsprechstelle · ESP32 · ESPHome · Home Assistant',
-  lede:'Eine Türsprechstelle aus drei ESP32-Platinen, einem E-Paper-Touchscreen und einem gekanteten Messingblech, bündig in eine gedämmte Fassade gesetzt und von Home Assistant gesteuert. Die Karte zeigt jedes Bauteil, jede Leitung und jede Lötstelle und markiert, was noch offen ist.',
+  lede:'Eine Türsprechstelle aus drei ESP32-Platinen, einem E-Paper-Touchscreen und einer Messingfront neben der Tür, an einem PoE-Kabel und von Home Assistant gesteuert. Die Karte zeigt jedes Bauteil, jede Leitung und jede Lötstelle und markiert, was noch offen ist.',
   ctaRing:'▶ Einem Klingeln folgen', ctaMap:'Zur Karte ↓', plateProto:'Prototyp · 2026',
-  plate:[['Versorgung','PoE · ein Kabel'],['Rechner','3 × ESP32 (Klingel · Sprechen · Bild)'],['Anzeige','4,7″ E-Paper · Touch'],['Front','Messing 2 mm · 100 × 260'],['Firmware','ESPHome'],['Kamera','keine']],
+  plate:[['Versorgung','PoE · ein Kabel'],['Rechner','3 × ESP32 (Klingel · Sprechen · Bild)'],['Anzeige','4,7″ E-Paper · Touch'],['Front','Stahl + Messing · 100 × 260'],['Firmware','ESPHome'],['Kamera','keine']],
   pOverview:'Überblick', pPower:'Strom', pData:'Daten', pMech:'Montage', pAll:'Alles',
   tgJoints:'Verbindungen & Lötstellen', tgPlanned:'Geplante Funktionen',
   hintMouse:'Bauteil oder Leitung anklicken · ziehen zum Verschieben · Strg + Mausrad zum Zoomen', hintTouch:'Bauteil oder Leitung antippen · mit zwei Fingern zoomen',
@@ -563,7 +563,7 @@ de:{
   lgDecided:'Leitung, entschieden', lgUndecided:'noch offen', lgNet:'übers Netzwerk', lgRadio:'Funk', lgJoint:'Verbindung', lgSolder:'Löten', lgScrew:'Schraubklemme', lgPlug:'Stecker / Pin', lgWago:'Hebelklemme', lgBar:'an Schiene angeschlossen',
   masonry:'Mauerwerk', insulation:'Dämmung 14 cm', boxSub:'gedruckt · dicht · beheizt', frontSub:'außen · Messing 2 mm',
   st:{existing:'schon vorhanden',in_hand:'vorhanden',in_mail:'unterwegs',to_buy:'zu kaufen',pending:'Entscheidung offen',planned:'geplant',printed:'gedruckter Prototyp'},
-  zones:{internet:'Internet',house:'Haus',technikraum:'Technikraum',wall:'Wand',box:'Einbaukasten',front:'Messingfront'},
+  zones:{internet:'Internet',house:'Haus',technikraum:'Technikraum',wall:'Wand',box:'Kasten an der Tür',front:'Messingfront'},
   layers:{mains:'Netz 230 V',poe:'PoE',ethernet:'Ethernet',wifi:'WLAN',v12:'12 V',v5:'5 V',v3:'3,3 V',gnd:'Masse',earth:'Erdung',i2c:'I²C',i2s:'I²S-Audio',gpio:'Steuerleitungen',button:'Klingelleitung',speaker:'Lautsprecher',software:'Software-Verbindungen',mech:'Montage & Dichtung'},
   layerHints:{
     mains:'Haushaltsstrom 230 V, nur im Haus. Er speist die USV, die USV speist den Switch.',

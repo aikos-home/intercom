@@ -1,0 +1,130 @@
+# Intercom bell computer on the Waveshare ESP32-S3-ETH (W5500 Ethernet over SPI, 16 MB flash,
+# optional plug-on "PoE Module (B)"). Stage 1 firmware (2026-09-30).
+# Why this board: the WT32-ETH01 starts in download mode because its oscillator holds IO0 low
+# (see wt32eth-intercom-bell.yaml). The W5500 needs no clock on a strapping pin, and the board has
+# native USB-C, so no adapter and no boot bridge are needed.
+# Names follow the aikos nomenclature (network name aikos-<family>-<role>, board only in the comment;
+# until 2026-09-30 this device was s3poeeth-intercom-bell, its HA entity ids keep that prefix).
+# The bell logic itself lives in bell-core.yaml.
+# Pins: Waveshare wiki ESP32-S3-ETH (W5500 MISO 12, MOSI 11, SCLK 13, CS 14, INT 10, RST 9;
+# GPIO33-37 are taken by the PSRAM).
+
+substitutions:
+  # Keep "false" until the supervised line is wired (floating ADC = phantom presses).
+  line_installed: "true"            # line wired on the bench 2026-09-30
+  line_pin: GPIO1           # ADC1_CH0, header "IO1" (5th hole from the end opposite USB-C)
+  line_pin_idf: GPIO_NUM_1      # same pin, ESP-IDF name (for the pull-up)
+  th_pressed: "1.30"        # below = pressed (bench: firm 0.36-0.45 V, weak 0.6-0.9 V, idle 2.03 V)
+  th_released: "1.60"       # above = released again (hysteresis)
+  th_cut: "2.60"
+  dip_level: "1.90"            # log every touch below this (idle ~2.03 V with the internal pull-up)
+  line_voltage_report: 1s          # bench: live; set 30s for the real door
+
+esphome:
+  name: aikos-intercom-bell
+  friendly_name: aikos Intercom Bell
+  comment: "Intercom · Waveshare ESP32-S3-ETH"
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.3.1"
+
+# Direct ring path: unicast to each RoomKey's fixed address (addresses live in secrets.yaml, never in the repo).
+udp:
+  addresses:
+    - !secret ring_target_1
+    - !secret ring_target_2
+    - !secret ring_target_3   # the door screen: shows "Es klingelt" even while HA restarts
+    - !secret ring_target_4   # the talk computer: a key that holds soon after a ring answers it (voice v2 case 1)
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  partitions: partitions-bell.csv   # factory = safe firmware (aikos H4 stage 4); app0/app1 = normal firmware
+  framework:
+    type: esp-idf
+
+ethernet:
+  type: W5500
+  clk_pin: GPIO13
+  mosi_pin: GPIO11
+  miso_pin: GPIO12
+  cs_pin: GPIO14
+  interrupt_pin: GPIO10
+  reset_pin: GPIO9
+
+logger:
+  level: INFO
+  hardware_uart: USB_SERIAL_JTAG
+
+# aikos H4 stage 4 (the owner 03.10.2026): the bell's own SAFE firmware sits in the factory partition (partitions-bell.csv,
+# built from aikos-intercom-bell-safe.yaml). 5 failed boots in a row -> ESPHome's safe_mode reports a boot loop -> the
+# normal firmware boots the safe one, which still rings (Ethernet only) and goes back to the normal firmware after 60 min.
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [aikos_firmware, aikos_peer_guard]
+
+aikos_firmware:
+  role: normal
+
+# aikos H4 (03.10.): bell and talk computer bring each other back by wire (aikos_peer_guard). Header pins: GPIO40 = pin 11,
+# GPIO39 = pin 12, GND = pin 13, GPIO38 = pin 14 (right row, PINOUT.md). In the safe firmware too.
+aikos_peer_guard:
+  id: peer_guard
+  heartbeat_out: GPIO39          # -> talk computer GPIO8
+  peers:
+    - name: talk
+      heartbeat_in: GPIO38       # <- talk computer GPIO18
+      reset_out: GPIO40          # -> talk computer RST (open-drain, pulls low 200 ms)
+      resets:
+        name: Talk computer resets by the bell
+        entity_category: diagnostic
+      heartbeat:                 # on while the talk computer's heartbeat arrives over its wire (box check, 0.3.24)
+        name: Talk computer heartbeat
+        entity_category: diagnostic
+
+safe_mode:
+  on_safe_mode:
+    - lambda: aikos_firmware::boot_safe_firmware();
+
+binary_sensor:
+  - platform: template
+    id: safe_firmware_running
+    name: Safe firmware
+    icon: mdi:lifebuoy
+    entity_category: diagnostic
+    lambda: return aikos_firmware::running_safe_firmware();
+
+api:
+  encryption:
+    key: !secret s3bell_api_key
+  # Don't reboot when Home Assistant is away: a restart cannot bring HA back and costs presses.
+  reboot_timeout: 0s
+  # Send every state change at once. The default 100 ms batch merges fast presses (storm ringing
+  # showed 2 of 5 on/off pairs in HA) and adds up to 100 ms of delay.
+  batch_delay: 0ms
+  actions:
+    # TEST: a press of the brass button without touching it (bench and remote tests). It holds the button state like a
+    # closed contact for hold_ms (30 ms to 10 s), so everything after the line sampling is the real path.
+    - action: test_press
+      variables:
+        hold_ms: int
+      then:
+        - lambda: |-
+            const int ms = std::max(30, std::min(static_cast<int>(hold_ms), 10000));
+            id(test_press_until) = (millis() + ms) | 1;
+            ESP_LOGI("bell", "test press: %d ms", ms);
+    # TEST (box check 21.10.): pull the talk computer's EN low for 200 ms over its reset wire (GPIO40 -> talk RST), the way
+    # the guard does when the talk computer hangs. Proof: the talk computer's uptime starts again.
+    - action: test_reset_talk
+      then:
+        - lambda: id(peer_guard).test_reset("talk");
+
+ota:
+  - platform: esphome
+    password: !secret s3bell_ota_password
+
+packages:
+  bell: !include bell-core.yaml

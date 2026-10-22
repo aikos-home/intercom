@@ -67,7 +67,7 @@ What happened, in order, including the dead ends. Dates are 2026.
 
 - The screen runs ESPHome. The community driver wiped the whole panel black and white before every
   picture: two seconds of flashing, which at a door looks like a fault. The driver in
-  [`firmware/screen/`](../firmware/screen/) now moves each pixel only by the difference between its
+  [`firmware/`](../firmware/README.md#screen-computer) now moves each pixel only by the difference between its
   old and new grey, all changed rows in one sweep, in a background task so touch is never ignored.
   A tap changes the picture in about half a second, without a flash.
 - **Lesson:** lightening a pixel also fades its neighbours. Thin lines next to changed pixels vanished
@@ -80,6 +80,8 @@ What happened, in order, including the dead ends. Dates are 2026.
   clears it. So the screen flashes briefly on a real page change and stays calm within a page.
 - **Lesson:** e-paper must be driven balanced. A test animation that lightened pixels more than it had
   darkened them left a faint ring after about a hundred frames that even a flash did not remove at once.
+
+## 30 September – 4 October: three computers on one cable
 
 - The doorbell computer moved boards. The WT32-ETH01 booted once, then always started in download
   mode: its IO0 is both the boot-mode pin and the Ethernet clock input, and the oscillator holds it
@@ -97,6 +99,68 @@ What happened, in order, including the dead ends. Dates are 2026.
 - **Lesson:** a loose wire on an analog pin looks like a press, and a half-closed brass contact
   hovers right at a single threshold. The internal pull-up and a two-threshold hysteresis fixed both.
 - Cable cut and short circuit are both reported, after 10 and 60 seconds.
+
+- The box got its talk computer and its own Wi-Fi (1–4 October). All three computers now run on the bench from one
+  PoE cable: the doorbell computer is the only wired one, runs the Wi-Fi "aikos" and bridges it into the LAN; the
+  talk computer (microphone, amplifier, speaker) and the screen join it. Wiring: [`firmware/WIRING.md`](../firmware/WIRING.md).
+- Two-way talk with the room keys runs through the shared voice library; the screen shows "Sprechen" after a ring,
+  the call, and the transcripts.
+- Self-healing for a box in the wall: a firmware counts as good only after 2 minutes healthy, 5 failed boots start a
+  safe firmware (doorbell computer: its own, in the factory partition), runtime guards restart a stuck network, and
+  the doorbell and talk computers watch each other over four wires and reset each other.
+- **Lesson:** ESPHome's `safe_mode` marks the running firmware good on every orderly restart by default
+  (`boot_is_good_on_shutdown`), which silently defeats the rollback. Off, and the guards restart without shutdown hooks.
+- **Lesson:** a bridged Ethernet + Wi-Fi port stalled the bell until the task watchdog fired: the bridge's 16-entry
+  forwarding table overflowed and every frame was flooded. 128 entries and all-multicast off fixed it.
+- **Lesson:** after a bell restart the screen paired the new boot id with the old press number, counted a phantom
+  press and then skipped the real ones. A new boot id now waits for its own press number.
+- **Lesson:** on 4 October two faults were breadboard contacts. The amplifier's ground had no contact (distorted sound
+  on every speaker, its 5 V read 4.4 V), and the button line's pull-up came loose (the line idled at 0.75 V instead of
+  2.02 V, which reads as a held button). Beep-test the ground and supply path before blaming a part; in the box,
+  solder or clamp.
+- **Lesson:** moving a wire with the power on took the talk computer off the network until a power cycle, and two days
+  earlier a live re-plug of the 5 V jumpers killed a board. Power off first, every time.
+- Power at the switch port with everything idle: 4.13 W, of which the screen takes about 1.75 W.
+
+## 4–14 October: tested end to end, and a heater on the PoE cable
+
+- A test press without touching the button (an API action that holds the button state like a closed contact) made the
+  whole ring path testable from a script. Storm ringing, 20 presses in 2.7 s: 20 of 20 at the doorbell computer, in
+  Home Assistant and on the screen, over both of its paths. From the press to the drawn ring page: 1.4 s, 1.1 s of it
+  the page-change flash.
+- Door speech reached the screen as text 4 s after the visitor paused, but up to 21 s when the transcriber found no
+  pause in the room noise. The transcriber's pause detection and echo cut were reworked on its side.
+- The first chat bubble of a call flashes once: drawn without a flash over the grey placeholder, it left a ghost.
+- **A fixed rule for the screen:** text is black on white or white on black, never on grey and never grey.
+- The heater pad (5 V, about 5 W) ran on the doorbell computer's plug-on PoE module, together with everything else:
+  **9.37 W** at the switch port, the 5 V rail at 4.8 V under load (5.0 V without), the module barely warm, no restart
+  during seven rounds of calls with screen flashes and full-level gongs. So the one PoE cable carries the heater, and
+  the industrial splitter is not needed for the load.
+- Not tested: a cold start in frost. The module has no published temperature range. The riskiest moment is a start
+  after a long power cut in frost; once running, the box heats itself. The fallback is the industrial splitter.
+- **Lesson:** the heater's thin leads made no contact in a lever clamp, even with ferrules. Crimp thin leads onto a
+  thicker wire before any clamp.
+- **Lesson:** a firmware update that never got marked as good rolled back silently at the next restart: the 60 ms
+  debounce of version 0.3.22 was never active. Check the running version after every update.
+- The first doorbell (the ESP32 indoors from August) was retired.
+
+## 12–20 October: the v3 box, wired inside
+
+- The box went through versions v3.0 to v3.7 within a few days, each change a measured finding from the printed part:
+  [`hardware/`](../hardware/). It is surface-mounted on the solid wooden door frame and 60 mm deep. The doorbell and
+  talk computers share one carrier that slides out downwards, the display sits on a carrier plate held by two tongues
+  and two screws, and the climate sensor for outdoor air has its own chamber.
+- All wiring inside the box is soldered, with 10–15 cm of reserve in every wire so the parts can move to the next box
+  without cutting anything. A small perfboard distributes 5 V, 3.3 V and ground and carries the button-line circuit and
+  the box's climate sensor. Pin by pin: [`firmware/WIRING.md`](../firmware/WIRING.md).
+- **Lesson:** a single stray strand at the climate sensor shorted 3.3 V to ground. The beep test found it before
+  the power did.
+- **First power-on in the box (20 October):** all three computers came up and joined the network, the button line
+  idled at 1.99 V (2.02 V on the bench), two presses reached the screen over both paths, the supervision wires reset
+  nobody, the microphone delivered audio, and a tone sweep and a spoken message played clean through the speaker.
+- Written for the box but not yet on the devices: the two climate sensors with the box's dew point (doorbell
+  computer), the radar (screen), and leaving a message (talk computer). Still open: the heater switch, the light under
+  the roof and the service USB ports.
 
 ## Next
 

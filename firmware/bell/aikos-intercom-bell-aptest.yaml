@@ -1,0 +1,23 @@
+# aikos Wi-Fi bench test (aikos bausteine/tuerstation.md H3, the owner 2026-10-03): the bell opens a TEST Wi-Fi next to its
+# Ethernet. No bridge yet, so it must NOT use the house SSID (phones would join a network that leads nowhere).
+# Checks: the bell stays stable with Ethernet + access point, rings as before, power on the switch, signal on a phone.
+# Built on the normal bell config. Network watchdog off: the device runs 0.3.0 (without it) since an OTA rollback, so the
+# only change against the running bell is the Wi-Fi.
+substitutions:
+  net_watchdog_on: "false"
+
+packages:
+  base: !include aikos-intercom-bell.yaml
+
+esphome:
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.3.2-aptest"
+
+network:
+  priority: [ethernet, wifi]   # Ethernet stays the bell's route; Wi-Fi only adds the access point
+
+wifi:
+  ap:
+    ssid: aikos-test
+    password: !secret aikos_test_ap_password

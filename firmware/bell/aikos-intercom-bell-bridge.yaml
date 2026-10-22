@@ -1,0 +1,258 @@
+# aikos Wi-Fi (aikos bausteine/tuerstation.md H3, the owner 2026-10-03): the bell's Ethernet and its access point as ONE
+# network (layer-2 bridge, firmware/components/eth_wifi_bridge). Devices on the access point get their address from the
+# house DHCP like any LAN device.
+# Own network "aikos" with its own password (the owner ~02:00, replaces "same name as the house Wi-Fi"): only the door screen
+# and the talk computer know it, so phones never join by themselves, and the bell never holds the house password.
+# Built on the AP test (0.3.2-aptest, Ethernet + access point, network watchdog off).
+packages:
+  base: !include aikos-intercom-bell-aptest.yaml
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [eth_wifi_bridge]
+
+esphome:
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.3.29-bridge"
+
+wifi:
+  # quiet on purpose: the screen and the talk computer sit in the same box, centimetres away (8.5 dBm = ESPHome's minimum)
+  output_power: 8.5dB
+  ap:
+    ssid: aikos
+    password: !secret aikos_wifi_password
+
+eth_wifi_bridge:
+
+# Bench diagnosis (2026-10-03 night): the bridged bell refused new TCP connections (API, OTA) some minutes after boot and
+# rebooted by task watchdog twice (02:14, 02:33, both right after failed connections). Watch the internal heap in HA.
+debug:
+  update_interval: 30s
+
+# Climate (box wiring 2026-10-16/17, ../WIRING.md): one I2C bus over the distribution board. Bell header pin 34 (GPIO17)
+# = SDA, pin 31 (GPIO18) = SCL, 3V3 from pin 36. On the bus: the SHT31-D in the outdoor chamber (0x44, ADR open) and the
+# BME280 on the distribution board (GY-BME280, CSB/SDO open -> 0x76 expected; the scan at boot logs what answers).
+# Both modules bring their own pull-ups. Here and not in bell-core.yaml: the WT32-ETH01 needs GPIO17 for Ethernet.
+i2c:
+  id: bus_climate
+  sda: GPIO17
+  scl: GPIO18
+  frequency: 100kHz
+  scan: true
+
+sensor:
+  - platform: debug
+    free:
+      name: Heap free
+    block:
+      name: Heap largest block
+    min_free:
+      name: Heap minimum free
+  - platform: sht3xd
+    i2c_id: bus_climate
+    address: 0x44
+    update_interval: 60s
+    temperature:
+      name: Outdoor temperature
+    humidity:
+      name: Outdoor humidity
+  - platform: bme280_i2c
+    i2c_id: bus_climate
+    address: 0x76
+    update_interval: 60s
+    temperature:
+      id: box_temp
+      name: Box temperature
+    humidity:
+      id: box_rh
+      name: Box humidity
+    pressure:
+      name: Air pressure
+  # Condensation inside the box: the box air's dew point and how far the box is above it. The heater governor (once the
+  # MOSFET is in) will start from these two numbers; until then they show in HA what it would have to do.
+  - platform: template
+    id: box_dew_point
+    name: Box dew point
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 60s
+    lambda: |-
+      const float t = id(box_temp).state, rh = id(box_rh).state;
+      if (std::isnan(t) || std::isnan(rh) || rh <= 0)
+        return NAN;
+      const float g = logf(rh / 100.0f) + 17.62f * t / (243.12f + t);   // Magnus formula (WMO)
+      return 243.12f * g / (17.62f - g);
+  - platform: template
+    id: box_margin
+    name: Box dew point margin
+    unit_of_measurement: "K"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 60s
+    lambda: |-
+      const float t = id(box_temp).state, d = id(box_dew_point).state;
+      return (std::isnan(t) || std::isnan(d)) ? NAN : t - d;
+  - platform: template
+    id: heater_power
+    name: Heater power
+    icon: mdi:radiator
+    unit_of_measurement: "%"
+    state_class: measurement
+    accuracy_decimals: 0
+
+# ── Heater (2026-10-21): the Adafruit 1481 foil (about 5 W at 5 V) behind the e-paper, switched by an HW-532 module
+#    (FR120N, opto-isolated input) from bell GPIO16 (header pin 32, GND on pin 33), the 73 °C thermal fuse in series
+#    (../WIRING.md §10). Slow PWM (10 s): kind to the opto and the MOSFET, the foil smooths it. The governor below heats
+#    when the box comes close to its dew point or gets cold, never above 40 °C, never without valid readings, and only
+#    while "Heater allowed" is on (off from the factory, until the foil is wired).
+output:
+  - platform: slow_pwm
+    id: heater_out
+    pin: GPIO16
+    period: 10s
+
+switch:
+  - platform: template
+    id: heater_allowed
+    name: Heater allowed
+    icon: mdi:radiator
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    on_turn_on:
+      - script.execute: heater_govern
+    on_turn_off:
+      - output.set_level: {id: heater_out, level: 0%}
+      - sensor.template.publish: {id: heater_power, state: 0}
+
+number:
+  # TEST (full-load test, 21.10.): a fixed heater power for at most 5 min, then back to 0 by itself. The governor's
+  # guards still hold: "Heater allowed", off at 40 °C or without readings, paused while the door light is on.
+  - platform: template
+    id: heater_test_power
+    name: Heater test power
+    icon: mdi:radiator
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 10
+    initial_value: 0
+    optimistic: true
+    restore_value: false
+    entity_category: config
+    on_value:
+      - lambda: 'id(heater_test_until) = x > 0 ? ((millis() + 300000) | 1) : 0;'
+      - script.execute: heater_govern
+  - platform: template
+    id: heater_target_margin
+    name: Heater target dew point margin
+    icon: mdi:water-thermometer
+    unit_of_measurement: "K"
+    min_value: 2
+    max_value: 15
+    step: 0.5
+    initial_value: 6
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: heater_min_temp
+    name: Heater minimum box temperature
+    icon: mdi:thermometer-low
+    unit_of_measurement: "°C"
+    min_value: -10
+    max_value: 20
+    step: 1
+    initial_value: 3
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: heater_max_power
+    name: Heater maximum power
+    icon: mdi:gauge
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 5
+    initial_value: 60
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+# ── Door light (the owner 2026-10-21: "ich habe einen strip SK6812. lass uns einfach den nehmen"): his 5 V SK6812 RGBW strip
+#    (60/m, 5050, 10 mm, pads +5V/DIN/DO/GND) under the canopy in the diffuser; the owner bends it in waves (over its flat
+#    side) so 8-10 LEDs fit: num_leds 10 (addresses past the end of a shorter piece cost nothing). Data from bell GPIO15
+#    (right row in the box, ../WIRING.md §10a), 5 V and GND from the distribution board. DIN wants >= 3.5 V at 5 V:
+#    3.3 V works on a short wire, a 74AHCT125 makes it sure. 10 LEDs at full RGBW draw about 4 W: capped at 75 %
+#    (about 3 W) until the full-load test; the heater pauses while the light is on (PoE budget).
+light:
+  - platform: esp32_rmt_led_strip
+    id: door_light
+    name: Door light
+    icon: mdi:wall-sconce-flat
+    pin: GPIO15
+    num_leds: 10
+    chipset: SK6812
+    rgb_order: GRB
+    is_rgbw: true
+    color_correct: [75%, 75%, 75%, 75%]   # power cap until the full-load test
+    default_transition_length: 1s
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:   # at once, not at the governor's next round (up to 30 s)
+      - output.set_level: {id: heater_out, level: 0%}
+      - sensor.template.publish: {id: heater_power, state: 0}
+    on_turn_off:
+      - script.execute: heater_govern
+
+globals:
+  - id: heater_test_until   # "Heater test power" runs until then (0 = no test)
+    type: uint32_t
+    initial_value: "0"
+
+script:
+  - id: heater_govern
+    mode: queued
+    then:
+      - lambda: |-
+          float duty = 0;
+          const uint32_t now = millis();
+          if (id(heater_test_until) != 0 && (int32_t) (now - id(heater_test_until)) >= 0) {
+            id(heater_test_until) = 0;
+            id(heater_test_power).publish_state(0);
+            ESP_LOGI("heater", "test power over");
+          }
+          // the PoE budget (802.3af, 4.82 W in the box today): heater (~5 W) and light (~1.2 W) never together
+          const bool light_on = id(door_light).current_values.is_on();
+          if (id(heater_allowed).state && light_on) {
+            ESP_LOGD("heater", "door light on: heater pauses");
+          } else if (id(heater_allowed).state) {
+            const float t = id(box_temp).state, m = id(box_margin).state;
+            if (std::isnan(t) || std::isnan(m)) {
+              ESP_LOGW("heater", "no valid box readings: heater off");
+            } else if (t < 40.0f) {
+              const float target = id(heater_target_margin).state, tmin = id(heater_min_temp).state;
+              // close to the dew point: more heat the closer it gets (margin 0 K = full); cold box: full 5 K below tmin
+              const float need_dew = std::max(0.0f, std::min(1.0f, (target - m) / target));
+              const float need_cold = std::max(0.0f, std::min(1.0f, (tmin - t) / 5.0f));
+              duty = std::max(need_dew, need_cold) * id(heater_max_power).state / 100.0f;
+              if (id(heater_test_until) != 0)
+                duty = id(heater_test_power).state / 100.0f;  // the test sets the power, the guards above stay
+            }
+          }
+          id(heater_out).set_level(duty);
+          const float pct = roundf(duty * 100.0f);
+          if (!id(heater_power).has_state() || id(heater_power).state != pct) {
+            ESP_LOGI("heater", "power %.0f %%", pct);
+            id(heater_power).publish_state(pct);
+          }
+
+interval:
+  - interval: 30s
+    then:
+      - script.execute: heater_govern
