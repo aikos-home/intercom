@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.24"
+    version: "0.7.25"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -157,8 +157,8 @@ qr_code:
   - id: qr_setup_portal
     value: http://192.168.4.1
     ecc: LOW
-  - id: qr_friends   # placeholder until the friends page exists (requirement 6, stage 2)
-    value: https://aikos.clei.ai/freunde
+  - id: qr_friends   # the friends page (requirement 6, stage 2; the page itself does not exist yet)
+    value: !secret friends_link   # the app's address stays out of the repo (public copy: secrets.example.yaml)
     ecc: MEDIUM
 
 display:

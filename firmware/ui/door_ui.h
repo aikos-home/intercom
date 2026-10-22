@@ -750,8 +750,8 @@ inline void draw_sent(Display &it) {
   const std::string done = sent_drawing            ? std::string("Ihr Bild ist angekommen.")
                            : message_target.empty() ? std::string("Ihre Nachricht ist angekommen.")
                                                     : "Ihre Nachricht für " + message_target + " ist angekommen.";
-  const int n = text(it, a.r40, 270, 470, 48, INK, TextAlign::TOP_CENTER, done, 492, 3);
-  it.print(270, 470 + n * 48 + 40, a.r32, INK, TextAlign::TOP_CENTER, "Gleich wieder zum Start");
+  text(it, a.r40, 270, 470, 48, INK, TextAlign::TOP_CENTER, done, 492, 3);
+  // no "Gleich wieder zum Start" under it any more (the owner 22.10.); the page still goes back after 15 s
 }
 
 inline void draw_drawing(Display &it) {

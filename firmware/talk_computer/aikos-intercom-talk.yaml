@@ -24,7 +24,7 @@ esphome:
   comment: "Intercom · ESP32-S3-N16R8 (HW678)"
   project:
     name: aikos-home.intercom-talk
-    version: "0.7.25"
+    version: "0.7.26"
   includes:
     - talk_volume.h        # speech_volume(): speech capped at -6 dB, the gong alone gets full level
     - ../ring/ring_path.h  # the bell's presses, each counted once (the same logic as the door screen)
@@ -160,6 +160,11 @@ api:
             const uint32_t d = (uint32_t) std::max(0, std::min(static_cast<int>(ms), 60000));
             ESP_LOGI("talk", "speech source %s allowed for %u ms", host.c_str(), (unsigned) d);
             id(voice).allow_source(host, d);
+    # An announcement is on its way (0.7.26): aikos calls this when it starts making a sentence, before the voice is
+    # ready, and the door plays a short soft tone so the wait for the voice is not dead air (the owner 22.10.: "ja").
+    - action: tts_cue
+      then:
+        - script.execute: tts_cue
     # aikos-app A5 (0.7.24): a phone in the call through the aikos app service ("App-Teilnehmer", asked by the aikos stack
     # 21.10.). `host` = "ip:port" of the app service's socket: the door sends its mic there while the participation lasts
     # (only during a call, like to every key). The participant is a key to the call model: it joins and talks with the
@@ -358,6 +363,40 @@ script:
           }
           id(voice).key_in_call(it->second, state >= 1);
           id(voice).key_hold(it->second, state >= 2);
+  - id: tts_cue              # "an announcement is coming" (0.7.26): rising two notes, soft, at the speech volume. The
+    mode: single             # one sound the door makes by itself besides speech (the owner 22.10.); never during a call
+    then:
+      - if:
+          condition:
+            lambda: return id(voice).in_call() || id(chime).is_running();
+          then:
+            - logger.log: "tts cue skipped (call or chime)"
+          else:
+            - lambda: id(spk).start();
+            - wait_until:
+                condition:
+                  lambda: return id(spk).is_running();
+                timeout: 2s
+            - lambda: |-
+                // 660 Hz then 990 Hz, 0.09 + 0.14 s, 10 ms fades; about -7 dBFS under the capped speech volume, well
+                // below the gong (the gong at -12 dBFS was "unusably quiet" on the bench, 04.10., so not lower)
+                static std::vector<uint8_t> pcm;
+                if (pcm.empty()) {
+                  const int rate = 16000;
+                  auto tone = [&](float hz, float seconds) {
+                    const int n = (int) (rate * seconds);
+                    for (int i = 0; i < n; i++) {
+                      const float fade = std::min(1.0f, std::min(i, n - i) / 160.0f);
+                      const int16_t s = (int16_t) (14000.0f * fade * sinf(2.0f * (float) M_PI * hz * i / rate));
+                      pcm.push_back((uint8_t) (s & 0xFF));
+                      pcm.push_back((uint8_t) ((s >> 8) & 0xFF));
+                    }
+                  };
+                  tone(660.0f, 0.09f);
+                  tone(990.0f, 0.14f);
+                }
+                const size_t sent = id(spk).play(pcm.data(), pcm.size(), pdMS_TO_TICKS(100));
+                ESP_LOGI("talk", "tts cue: %u of %u bytes to the speaker", (unsigned) sent, (unsigned) pcm.size());
   - id: chime                # on demand only ("Test chime" button): the intercom itself never chimes (owner 2026-10-04)
     mode: single
     then:
