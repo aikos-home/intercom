@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.27"
+    version: "0.7.28"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -51,6 +51,7 @@ esphome:
             a.b44 = id(b44); a.b48 = id(b48); a.b60 = id(b60);
             a.i48 = id(i48); a.i64 = id(i64); a.i96 = id(i96); a.i120 = id(i120);
             a.friends = id(qr_friends);
+            a.whatsapp = id(qr_whatsapp);
             door_ui::fast_rect = [](int x, int y, int w, int h, esphome::Color c) { id(epaper).fill_rect(x, y, w, h, c); };
             door_ui::disp = id(epaper);   // the call page measures chat lines before it decides: ink only or a new page
             aikos_ring::on_press = [](uint32_t now) {
@@ -145,7 +146,7 @@ font:   # all text fonts carry Latin Core: names, notes and transcripts come fro
     glyphs: &ICONS ["\U0000efff", "\U0000f1e3", "\U0000e7f7", "\U0000f159", "\U0000f569", "\U0000f106", "\U0000e31d",
                     "\U0000e746", "\U0000e00a", "\U0000e91f", "\U0000e048", "\U0000e1b8", "\U0000e0d9", "\U0000e5c4",
                     "\U0000f233", "\U0000f0d3", "\U0000e163", "\U0000e5cd", "\U0000f0be", "\U0000e6d0", "\U0000e63e",
-                    "\U0000e86c", "\U0000e5ce", "\U0000e5cf", "\U0000e7f6", "\U0000e766"]
+                    "\U0000e86c", "\U0000e5ce", "\U0000e5cf", "\U0000e7f6", "\U0000e766", "\U0000e0b7"]
   - {file: "gfonts://Material+Symbols+Outlined", id: i64, size: 64, bpp: 4, glyphs: *ICONS}
   - {file: "gfonts://Material+Symbols+Outlined", id: i96, size: 96, bpp: 4, glyphs: *ICONS}
   - {file: "gfonts://Material+Symbols+Outlined", id: i120, size: 120, bpp: 4, glyphs: *ICONS}
@@ -157,6 +158,9 @@ qr_code:
   - id: qr_setup_portal
     value: http://192.168.4.1
     ecc: LOW
+  - id: qr_whatsapp  # "Auf WhatsApp kontaktieren" on the muted ring page (the owner 22.10.); the number stays out of the repo
+    value: !secret whatsapp_link
+    ecc: MEDIUM
   - id: qr_friends   # the friends page (requirement 6, stage 2; the page itself does not exist yet)
     value: !secret friends_link   # the app's address stays out of the repo (public copy: secrets.example.yaml)
     ecc: MEDIUM

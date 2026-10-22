@@ -67,6 +67,7 @@ static const char *const UP = "\U0000e5ce";    // expand_less
 static const char *const DOWN = "\U0000e5cf";  // expand_more
 static const char *const BELL_OFF = "\U0000e7f6";  // notifications_off: the bell is muted (aikos-app A14)
 static const char *const HELLO = "\U0000e766";     // waving_hand: the house's words for whoever comes (aikos-app A13)
+static const char *const CHAT = "\U0000e0b7";      // chat: "Auf WhatsApp kontaktieren" (the owner 22.10.)
 }  // namespace icon
 
 struct Assets {
@@ -75,12 +76,13 @@ struct Assets {
   Font *b44 = nullptr, *b48 = nullptr, *b60 = nullptr;     // Roboto bold
   Font *i48 = nullptr, *i64 = nullptr, *i96 = nullptr, *i120 = nullptr;  // Material Symbols
   esphome::qr_code::QrCode *friends = nullptr;
+  esphome::qr_code::QrCode *whatsapp = nullptr;  // a wa.me link from secrets.yaml; nullptr = no WhatsApp button
 };
 inline Assets a;
 
-enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS, WELCOME, REPLY };
+enum View { START, RINGING, CALL, PICK, MESSAGE, RECORDING, SENT, DRAW, FRIENDS, WELCOME, REPLY, WHATSAPP };
 static const char *const VIEW_NAMES[] = {"start", "ringing", "call",    "pick",    "message", "recording",
-                                         "sent",  "draw",    "friends", "welcome", "reply"};
+                                         "sent",  "draw",    "friends", "welcome", "reply",   "whatsapp"};
 
 static const uint32_t WAIT_MS = 45000;        // ringing: offer the message after this
 static const uint32_t RING_SHOW_MS = 120000;  // ringing: back to rest after this
@@ -392,7 +394,8 @@ enum Action {
   OLDER,
   NEWEST,
   WELCOME_AWAY,
-  REPLY_AWAY
+  REPLY_AWAY,
+  GO_WHATSAPP
 };
 struct Hit {
   int x, y, w, h, action, arg;
@@ -526,6 +529,9 @@ inline void draw_home(Display &it) {
     // the owner, 21.10.: muted or quiet hours, nobody hears the bell, so no "Sprechen" into the void; only the message,
     // big. A resident who answers from the app still turns it into a call (tick()).
     wide_button(it, y0, 180, true, icon::VOICEMAIL, a.i64, a.m40, "Nachricht", "hinterlassen", GO_MESSAGE);
+    // the owner 22.10.: with the bell muted (not in quiet hours) the visitor can also reach him on WhatsApp
+    if (muted && a.whatsapp != nullptr)
+      wide_button(it, y0 + 200, 110, false, icon::CHAT, a.i48, a.m32, "Auf WhatsApp kontaktieren", nullptr, GO_WHATSAPP);
     return;
   }
   if (view == RINGING) {  // v2 (the owner): "Sprechen" right after the ring; the message until someone answers
@@ -830,6 +836,19 @@ inline void draw_friends(Display &it) {
   }
 }
 
+// the owner 22.10.: "Auf WhatsApp kontaktieren" from the muted ring page: a big code to scan (a wa.me link from
+// secrets.yaml, so the number is in no file of the repo). Back goes to the ring page while the ring is fresh.
+inline void draw_whatsapp(Display &it) {
+  back_button(it);
+  it.print(24, 134, a.b48, INK, TextAlign::TOP_LEFT, "WhatsApp");
+  const int n = text(it, a.r32, 24, 204, 42, INK, TextAlign::TOP_LEFT,
+                     "Code mit dem Handy scannen und uns auf WhatsApp schreiben.", 492, 3);
+  if (a.whatsapp != nullptr) {
+    const int m = a.whatsapp->get_size(), s = std::max(1, std::min(14, 400 / m));
+    it.qr_code(270 - m * s / 2, 204 + n * 42 + 50, a.whatsapp, INK, s);
+  }
+}
+
 inline void draw_test(Display &it) {
   if (test_pattern == 1) {
     rect(it, 0, 0, 540, 960, INK);
@@ -880,6 +899,7 @@ inline void draw(Display &it) {
     case FRIENDS: draw_friends(it); break;
     case WELCOME: draw_welcome(it); break;
     case REPLY: draw_reply(it); break;
+    case WHATSAPP: draw_whatsapp(it); break;
   }
 }
 
@@ -890,7 +910,14 @@ inline void act(int action, int arg, uint32_t now) {
     case GO_MESSAGE: go(MESSAGE, now); break;
     case GO_DRAW: go(DRAW, now); break;
     case GO_FRIENDS: go(FRIENDS, now); break;
+    case GO_WHATSAPP: go(WHATSAPP, now); break;
     case GO_BACK:
+      if (view == WHATSAPP && ring_ms != 0 && now - ring_ms < RING_SHOW_MS) {
+        go(RINGING, now);  // back to the muted ring page it came from
+        break;
+      }
+      go(START, now);
+      break;
     case CANCEL: go(START, now); break;
     case TARGET:  // KR-R4: the screen rings whom the visitor picked; HA/aikos ring that person's keys (0.7.15)
       ring_target = arg == 0 ? "allen im Haus" : targets[arg];
@@ -1126,6 +1153,7 @@ inline void tick(uint32_t now) {
     case MESSAGE:
     case DRAW:
     case FRIENDS:
+    case WHATSAPP:
       if (now - std::max(view_ms, last_touch_ms) >= SUBPAGE_IDLE_MS)
         go(START, now);
       break;
