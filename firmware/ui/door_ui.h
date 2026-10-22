@@ -560,7 +560,9 @@ inline void draw_home(Display &it) {
   static const Tile TILES[4] = {{icon::PERSON_SEARCH, "Bei jemandem", "klingeln", GO_PICK},
                                 {icon::MIC, "Nachricht", "hinterlassen", GO_MESSAGE},
                                 {icon::DRAW, "Malen", nullptr, GO_DRAW},
-                                {icon::QR, "Für Freunde", nullptr, GO_FRIENDS}};
+                                // the owner 22.10.: WhatsApp instead of "Für Freunde" while the friends page does
+                                // not exist (the FRIENDS page stays in the code for when it does)
+                                {icon::CHAT, "Per WhatsApp", "kontaktieren", GO_WHATSAPP}};
   const bool msg_hot = (view == RINGING && waited) || (view == START && hushed());
   for (int k = 0; k < 4; k++) {
     const int x = 24 + (k % 2) * (tw + 16), y = y0 + (k / 2) * (th + 16);
