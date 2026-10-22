@@ -191,6 +191,7 @@ inline void rang(uint32_t now) {  // the brass button (either path, first one)
     ESP_LOGI("ui", "rang during a recording: the recording goes on");
     return;
   }
+  ESP_LOGI("ui", "rang (muted %d, quiet hours %d)", (int) muted, (int) quiet);
   ring_ms = now;
   waited = hushed();  // quiet hours or muted: nobody comes, the message is offered at once (KR-R11, A14)
   ring_target = "allen im Haus";
@@ -218,6 +219,8 @@ inline void set_note(const std::string &s) {
   }
 }
 inline void set_quiet(bool q) {  // the stage and a whole tile swap: a page change
+  if (q != quiet)
+    ESP_LOGI("ui", "quiet hours: %s", q ? "on" : "off");
   quiet = q;
   if (view == START) {
     full_needed = true;
@@ -227,6 +230,7 @@ inline void set_quiet(bool q) {  // the stage and a whole tile swap: a page chan
 inline void set_muted(bool m) {  // the stage and a whole tile swap: a page change
   if (m == muted)
     return;
+  ESP_LOGI("ui", "bell muted: %s", m ? "on" : "off");
   muted = m;
   if (view == START || view == RINGING) {
     full_needed = true;

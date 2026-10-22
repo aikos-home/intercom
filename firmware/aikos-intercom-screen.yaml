@@ -27,7 +27,7 @@ esphome:
   min_version: 2026.3.0
   project:
     name: aikos-home.intercom-screen
-    version: "0.7.29"
+    version: "0.7.31"
   includes:
     - demo/demo.h          # the finger-drawing canvas
     - setup/setup_page.h
@@ -539,19 +539,24 @@ binary_sensor:
     id: message_held
     name: Visitor records a message
     icon: mdi:voicemail
+  # trigger_on_initial_state (0.7.30): ESPHome skips on_state for the first state after a start, so after every
+  # restart the screen did not know a mute set before it (22.10.: "stumm bis 11:11" in the app, the door rang as usual)
   - platform: homeassistant   # aikos quiet hours (KR-R11): the door offers "Nachricht hinterlassen" at once
     id: aikos_quiet
     entity_id: binary_sensor.aikos_quiet_hours
+    trigger_on_initial_state: true
     on_state:
       - lambda: door_ui::set_quiet(x || id(quiet_hours).state);
   - platform: homeassistant   # aikos "Klingel stumm" (aikos-app A14): like quiet hours, nobody inside hears the bell
     id: aikos_muted
     entity_id: binary_sensor.aikos_bell_muted
+    trigger_on_initial_state: true
     on_state:
       - lambda: door_ui::set_muted(x);
   - platform: homeassistant   # the talk computer has a call (a key held, or the visitor tapped "Sprechen")
     id: talk_in_call
     entity_id: binary_sensor.aikos_intercom_talk_in_call
+    trigger_on_initial_state: true
     on_state:
       - lambda: |-
           door_ui::set_call(x);
@@ -560,11 +565,13 @@ binary_sensor:
     provider: aikos-intercom-talk
     remote_id: door_answered
     id: talk_answered_direct
+    trigger_on_initial_state: true
     on_state:
       - lambda: aikos_call::set_answered(x);
   - platform: homeassistant   # some key answered or joined: "Nachricht hinterlassen" goes (the owner, 2026-10-01)
     id: talk_answered
     entity_id: binary_sensor.aikos_intercom_talk_answered
+    trigger_on_initial_state: true
     on_state:
       - lambda: aikos_call::set_answered(x);
 
