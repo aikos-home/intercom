@@ -12,15 +12,24 @@ The denylist is a private text file that is never committed. One term per line:
 
 Built-in checks, no denylist needed: private IPv4 addresses, MAC addresses, e-mail
 addresses and Home Assistant entity ids. Binary files are scanned as Latin-1 text, so
-names inside STL/STEP headers or PNG metadata are found too.
+names inside STL/STEP headers or PNG metadata are found too. ZIP containers (FCStd, 3MF,
+anything starting with "PK") are unpacked and every member is scanned the same way, nested
+ones too; compressed PNG text chunks (zTXt, iTXt) are unpacked as well. A Latin-1 read of
+the packed bytes would not see a name in there.
 
 Exit code 1 if anything is found.
 """
 import argparse
+import io
 import os
 import re
+import struct
 import subprocess
 import sys
+import zipfile
+import zlib
+
+MAX_MEMBER = 64 * 1024 * 1024  # a member bigger than this is reported, not read
 
 BUILTIN = {
     "private IPv4": re.compile(r"\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b"),
@@ -36,6 +45,55 @@ def repo_files(root):
     out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
                          cwd=root, capture_output=True, text=True, check=True).stdout
     return [f for f in out.splitlines() if f]
+
+
+def decode(raw):
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("latin-1")
+
+
+def png_texts(raw):
+    """The compressed text chunks of a PNG (zTXt, compressed iTXt), unpacked."""
+    out, pos = [], 8
+    while pos + 8 <= len(raw):
+        size = struct.unpack(">I", raw[pos:pos + 4])[0]
+        kind, data = raw[pos + 4:pos + 8], raw[pos + 8:pos + 8 + size]
+        pos += 12 + size
+        try:
+            if kind == b"zTXt":
+                key, rest = data.split(b"\0", 1)
+                out.append(key + b": " + zlib.decompress(rest[1:]))
+            elif kind == b"iTXt":
+                key, rest = data.split(b"\0", 1)
+                compressed, body = rest[0], rest[2:]
+                _lang, body = body.split(b"\0", 1)
+                translated, text = body.split(b"\0", 1)
+                out.append(key + b" " + translated + b": " + (zlib.decompress(text) if compressed else text))
+        except (ValueError, IndexError, zlib.error):
+            out.append(b"(unreadable " + kind + b" chunk)")
+    return out
+
+
+def texts(label, raw, depth=0):
+    """(label, text) of a file and of whatever is packed inside it."""
+    yield label, decode(raw)
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
+        for i, t in enumerate(png_texts(raw)):
+            yield f"{label}[text chunk {i}]", decode(t)
+    if raw[:4] == b"PK\x03\x04" and depth < 4:
+        try:
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                for info in z.infolist():
+                    if info.is_dir():
+                        continue
+                    if info.file_size > MAX_MEMBER:
+                        yield f"{label}!{info.filename}", "(member too big to scan)"
+                        continue
+                    yield from texts(f"{label}!{info.filename}", z.read(info), depth + 1)
+        except (zipfile.BadZipFile, RuntimeError, NotImplementedError) as e:
+            yield f"{label}", f"(zip not readable: {e})"
 
 
 def load_denylist(path):
@@ -73,30 +131,27 @@ def main():
         if not os.path.isfile(path):
             continue
         raw = open(path, "rb").read()
-        try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            text = raw.decode("latin-1")
-        low = text.lower()
-        for a in allowed:
-            low = low.replace(a, " " * len(a))
-        # the built-in checks see the same blanks (keeps the original case elsewhere): an allowed phrase like a
-        # SoftAP default address or a product entity id is allowed everywhere
-        blank = text
-        for a in allowed:
-            blank = re.sub(re.escape(a), lambda m: " " * len(m.group(0)), blank, flags=re.IGNORECASE)
-        for t, rx in patterns:
-            for m in rx.finditer(low):
-                line = low.count("\n", 0, m.start()) + 1
-                print(f"{rel}:{line}: denylisted term '{t}'")
-                hits += 1
-        for name, rx in BUILTIN.items():
-            for m in rx.finditer(blank):
-                if name == "e-mail address" and m.group(0).lower() in ALLOWED_EMAILS:
-                    continue
-                line = text.count("\n", 0, m.start()) + 1
-                print(f"{rel}:{line}: {name}: {m.group(0)}")
-                hits += 1
+        for label, text in texts(rel, raw):
+            low = text.lower()
+            for a in allowed:
+                low = low.replace(a, " " * len(a))
+            # the built-in checks see the same blanks (keeps the original case elsewhere): an allowed phrase like a
+            # SoftAP default address or a product entity id is allowed everywhere
+            blank = text
+            for a in allowed:
+                blank = re.sub(re.escape(a), lambda m: " " * len(m.group(0)), blank, flags=re.IGNORECASE)
+            for t, rx in patterns:
+                for m in rx.finditer(low):
+                    line = low.count("\n", 0, m.start()) + 1
+                    print(f"{label}:{line}: denylisted term '{t}'")
+                    hits += 1
+            for name, rx in BUILTIN.items():
+                for m in rx.finditer(blank):
+                    if name == "e-mail address" and m.group(0).lower() in ALLOWED_EMAILS:
+                        continue
+                    line = text.count("\n", 0, m.start()) + 1
+                    print(f"{label}:{line}: {name}: {m.group(0)}")
+                    hits += 1
     print(f"{hits} finding(s)" if hits else "clean")
     sys.exit(1 if hits else 0)
 
