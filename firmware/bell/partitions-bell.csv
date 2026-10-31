@@ -1,0 +1,11 @@
+# aikos Intercom bell: flash layout with a SAFE firmware (aikos H4 stage 4, the owner 03.10.2026).
+# factory = the bell's own fixed safe firmware (Ethernet only, still rings); app0/app1 = the normal firmware (OTA).
+# otadata, phy_init and nvs keep the offsets of ESPHome's default 16 MB layout, so the settings in nvs survive.
+# Only a USB flash writes this table (an OTA update never touches it or the factory partition).
+# Name,    Type, SubType, Offset,   Size
+otadata,   data, ota,     0x9000,   0x2000
+phy_init,  data, phy,     0xb000,   0x1000
+factory,   app,  factory, 0x10000,  0x300000
+app0,      app,  ota_0,   0x310000, 0x600000
+app1,      app,  ota_1,   0x910000, 0x600000
+nvs,       data, nvs,     0xf90000, 0x70000

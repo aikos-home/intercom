@@ -1,13 +1,14 @@
 # Klingelbox
 
-**Eine offene Türsprechstelle: Messingfront bündig in der Fassade, E-Paper-Touchscreen,
-Gegensprechen und ein einziges PoE-Kabel. Gebaut mit ESP32, ESPHome und Home Assistant.
+**Eine offene Türsprechstelle: Messingfront neben der Tür, E-Paper-Touchscreen, Gegensprechen
+mit den Zimmern und ein einziges PoE-Kabel. Gebaut mit ESP32, ESPHome und Home Assistant.
 Keine Kamera, niemals.**
 
 [English](README.md)
 
-> Stand: Prototyp. Die Teile liegen auf dem Labortisch, Front und Kasten gibt es als
-> 3D-gedruckte Prototypen. An einer Tür ist noch nichts montiert. Stand dieser Seite: 24.09.2026.
+> Stand: Prototyp. Die ganze Elektronik ist in den gedruckten v3-Kasten gelötet und läuft darin seit
+> dem 20.10.2026 auf dem Tisch. Die Metallfront ist noch nicht bestellt, an einer Tür ist noch nichts
+> montiert. Stand dieser Seite: 20.10.2026.
 
 <p align="center">
   <img src="docs/images/intercom-render.jpg" width="330" alt="KI-erzeugtes Konzeptbild: gebürstete Messingplatte an der Tür mit gekantetem Regendach und warmem Lichtband darunter, Lautsprecherschlitze, E-Paper-Bildschirm im Hochformat mit Hallo! Bitte klingeln. und QR-Code, gravierte Platzhalternamen und runder Messingtaster">
@@ -29,13 +30,15 @@ Keine Kamera, niemals.**
   statt still zu bleiben. Die Meldung ist auf dem Handy, bevor an der Tür irgendetwas anderes passiert.
 - **Ein Bildschirm an der Tür.** 4,7-Zoll-E-Paper mit Touch hinter einem Fenster im Messing:
   Begrüßung, Hinweise, QR-Code. Das Bild bleibt ohne Strom stehen und ist in der Sonne lesbar.
-- **Sprechen.** Mikrofon und Lautsprecher hinter dem Messing für Gespräche, über Home Assistant
-  aufs Handy. Geplant: Sprachnachrichten und Push-to-Talk ins Haus.
+- **Sprechen.** Mikrofon und Lautsprecher hinter dem Messing für Gespräche mit den
+  [RoomKey](https://github.com/aikos-home/roomkey)-Tasten in den Zimmern; was beide Seiten sagen, steht
+  als Text auf dem Bildschirm an der Tür. Geplant: Sprachnachrichten und Push-to-Talk ins Haus.
 - **Ein Kabel.** Daten und Strom kommen über ein einziges PoE-Außenkabel. Kein Netzteil an der
   Tür, kein Switch im Kasten.
 - **Lokal.** Alles läuft mit ESPHome und Home Assistant im eigenen Haus.
 - **Datenschutz eingebaut.** Keine Kamera. Das Mikrofon öffnet erst, wenn jemand an der Tür
-  etwas drückt, und der Bildschirm zeigt das an.
+  etwas drückt oder drinnen jemand einen Raumschlüssel hält, und der Bildschirm zeigt das an.
+  Nichts wird aufgezeichnet.
 
 ## Ansehen
 
@@ -48,17 +51,17 @@ herunterladen und im Browser öffnen. Eine gehostete Version ist geplant.
 
 ## Wie es funktioniert
 
-Drei kleine Rechner teilen sich ein Kabel und eine 5-V-Schiene, sonst nichts:
+Drei kleine Rechner teilen sich ein Kabel und eine 5-V-Schiene. Nur der Klingelrechner hängt am Kabel; er
+spannt für die anderen beiden ein eigenes WLAN auf und verbindet es mit dem Hausnetz.
 
 | Rechner | Platine | Verbindung | Aufgabe |
 |---|---|---|---|
-| Klingel | Waveshare ESP32-S3-ETH (PoE-Modul) | Kabel | Klingelleitung, Licht, Heizung, Klimasensor |
-| Sprechen | offen: ein ESP32-S3 mit PSRAM | WLAN | Mikrofon, Verstärker, Gespräche |
-| Bildschirm | LilyGO T5-4.7-S3 Touch | WLAN | E-Paper-Touchscreen |
+| Klingel | Waveshare ESP32-S3-ETH + PoE Module (B) | Kabel | Klingelleitung, Klimasensoren, WLAN und 5 V für den Kasten; später Heizung und Licht |
+| Sprechen | ESP32-S3-N16R8-Entwicklerplatine („HW678“) | WLAN | Mikrofon, Verstärker, Gespräche |
+| Bildschirm | LilyGO T5-4.7-S3 Touch | WLAN | E-Paper-Touchscreen, Anwesenheits-Radar |
 
-Die Klingel läuft auf einer eigenen Platine nur mit Standard-ESPHome. Ein Absturz oder ein Update
-im Audiocode kann sie deshalb nie stumm schalten. Details, Strombudget und Winterheizung stehen in
-[docs/architecture.md](docs/architecture.md) (Englisch).
+Die Klingel läuft auf einer eigenen Platine. Ein Absturz oder ein Update im Audiocode kann sie deshalb nie stumm
+schalten. Details, Strom, Winterheizung und Kasten stehen in [docs/architecture.md](docs/architecture.md) (Englisch).
 
 ## Inhalt
 
@@ -69,27 +72,28 @@ im Audiocode kann sie deshalb nie stumm schalten. Details, Strombudget und Winte
 | [`docs/roadmap.md`](docs/roadmap.md) | die Meilensteine vom Tisch bis zur Tür und die offenen Entscheidungen (Englisch) |
 | [`docs/build-log.md`](docs/build-log.md) | was bisher passiert ist, auch die Sackgassen |
 | [`docs/family-app.md`](docs/family-app.md) | die geplante selbst gehostete App für den Haushalt |
-| [`hardware/`](hardware/) | Front, Kasten und Diffusor: Skripte, STL und STEP, Maßzeichnungen der Teile |
+| [`hardware/`](hardware/) | der v3-Kasten mit allen Druckteilen, die Druck- und Einbauanleitung, die Front, Maßzeichnungen der Teile |
 | [`explorer/`](explorer/) | die interaktive Karte und ihr Build |
-| [`firmware/screen/`](firmware/screen/) | ESPHome-Firmware für den Bildschirm, mit schneller Aktualisierung ohne Aufblitzen und einer Demo (Englisch) |
+| [`firmware/`](firmware/) | ESPHome-Firmware für alle drei Rechner: [Klingel](firmware/bell/), [Sprechen](firmware/talk_computer/), Bildschirm (Englisch) |
+| [`firmware/WIRING.md`](firmware/WIRING.md) | wie alles im Kasten verdrahtet ist, Ader für Ader, mit den Lötblättern (Englisch, Blätter deutsch) |
 | [`docs/screen-ux.md`](docs/screen-ux.md) | was der Bildschirm an der Tür zeigen kann und was nicht, am Panel getestet (Englisch) |
 | [`tools/`](tools/) | der Datenschutz-Scan vor jedem Push und Testskripte für den Labortisch |
 
-Die Firmware für Klingel- und Sprechrechner und die Home-Assistant-Automationen kommen dazu,
-sobald sie die Tests auf dem Labortisch bestanden haben.
+Die Home-Assistant-Automationen sind noch nicht in diesem Repo.
 
 ## Sicherheit
 
 - Der Überspannungsschutz schützt nur geerdet. Das und alles an 230 V ist Sache eines Elektrikers.
 - Das E-Paper-Panel ist für 0 bis +50 °C freigegeben. Draußen braucht es die Heizung, und die
   Heizung braucht ihre Thermosicherung.
+- Vor jedem Griff an eine Leitung im Kasten den PoE-Port ausschalten.
 - Nie den USB-Anschluss einer Platine an einen Computer stecken, solange die 5-V-Schiene im
   Kasten Strom hat, außer das Kabel sperrt die Versorgung.
 
 ## Lizenzen
 
 - Code (Skripte, Explorer, Firmware): [MIT](LICENSE), außer dem Bildschirmtreiber in
-  `firmware/screen/components/`, der seine Lizenz behält (GPLv3 für C/C++)
+  `firmware/components/lilygo_t5_47_plus/`, der seine Lizenz behält (GPLv3 für C/C++)
 - Hardware (CAD-Skripte, STL, STEP, Zeichnungen): [CERN-OHL-P-2.0](LICENSES/CERN-OHL-P-2.0.txt)
 - Dokumentation und Bilder: [CC BY 4.0](LICENSES/CC-BY-4.0.txt)
 

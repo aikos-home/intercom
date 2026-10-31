@@ -1,9 +1,11 @@
 __pycache__/
 *.pyc
 *.FCBak
-hardware/cad/out/
+# old path: hardware/cad/out/
 .venv/
 .DS_Store
 Thumbs.db
 secrets.yaml
 .esphome/
+hardware/v3/cad/out/
+hardware/archive/*/cad/out/

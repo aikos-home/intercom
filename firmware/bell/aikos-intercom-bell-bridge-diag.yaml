@@ -1,0 +1,23 @@
+# Bench diagnosis of the bridge bell (aikos-intercom-bell-bridge.yaml + a core dump of all tasks to the USB console).
+# ONLY with the bell on USB at the PC (PoE off): a bell in the wall gets aikos-intercom-bell-bridge.yaml.
+# After switching between this file and the normal one: `esphome clean` (ESPHome keeps the old sdkconfig otherwise) and
+# check the build's sdkconfig for CONFIG_ESP_COREDUMP_ENABLE_TO_UART.
+packages:
+  base: !include aikos-intercom-bell-bridge.yaml
+
+esphome:
+  project:
+    name: aikos-home.intercom-bell
+    version: "0.3.17-diag"
+
+eth_wifi_bridge:
+  core_dump: true
+  # TCP guard tested 03.10. 19:50-19:52 with tcp_guard_host: 10.255.255.1 (never answers): 3 failures, reboot, back. Removed.
+
+# TEST ONLY (H4 stage 4): restart WITHOUT ESPHome's shutdown hooks, so the boot counter is not cleared. Five of these within
+# 2 min of boot each = a boot loop -> the bell must start its safe firmware.
+api:
+  actions:
+    - action: test_reboot_unconfirmed
+      then:
+        - lambda: App.reboot();
